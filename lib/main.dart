@@ -8,6 +8,8 @@ void main() async {
   final controller = ErpController();
   await controller.init();
   runApp(BaburBrothersPaintApp(controller: controller));
+  // Online sync runs in background; app works fully offline if it fails.
+  controller.connectCloud();
 }
 
 class BaburBrothersPaintApp extends StatefulWidget {

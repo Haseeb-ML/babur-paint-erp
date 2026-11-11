@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../services/cloud_sync.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../data/gobis_initial_data.dart';
 import '../l10n/app_strings.dart';
@@ -70,11 +72,66 @@ class ErpController extends ChangeNotifier {
     notifyListeners();
   }
 
+  static const String _kUpdatedAtKey = 'babur_brothers_updated_at_v1';
+  Timer? _cloudDebounce;
+  bool cloudOnline = false;
+
   Future<void> saveState() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_kStorageKey, exportBackupJson());
+      await prefs.setInt(
+          _kUpdatedAtKey, DateTime.now().millisecondsSinceEpoch);
     } catch (_) {}
+    _scheduleCloudPush();
+  }
+
+  void _scheduleCloudPush() {
+    if (!CloudSync.ready) return;
+    _cloudDebounce?.cancel();
+    _cloudDebounce = Timer(const Duration(seconds: 3), () => _pushToCloud());
+  }
+
+  Future<bool> _pushToCloud() async {
+    final prefs = await SharedPreferences.getInstance();
+    final ts =
+        prefs.getInt(_kUpdatedAtKey) ?? DateTime.now().millisecondsSinceEpoch;
+    final ok = await CloudSync.push(exportBackupJson(), ts);
+    cloudOnline = ok;
+    if (ok) _stampSynced();
+    notifyListeners();
+    return ok;
+  }
+
+  void _stampSynced() {
+    final now = TimeOfDay.now();
+    lastSyncedTime =
+        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+  }
+
+  /// Connects to Firebase in background; newest data (local vs cloud) wins.
+  Future<void> connectCloud() async {
+    await CloudSync.init();
+    if (!CloudSync.ready) return;
+    final prefs = await SharedPreferences.getInstance();
+    final localTs = prefs.getInt(_kUpdatedAtKey) ?? 0;
+    final remote = await CloudSync.pull();
+    if (remote != null && remote.updatedAt > localTs) {
+      // Keep this device's own language/theme choices.
+      final lang = currentLang, dark = isDarkMode, pal = paletteIndex;
+      if (loadFromJsonString(remote.json, notify: false)) {
+        currentLang = lang;
+        isDarkMode = dark;
+        paletteIndex = pal;
+        await prefs.setString(_kStorageKey, exportBackupJson());
+        await prefs.setInt(_kUpdatedAtKey, remote.updatedAt);
+        cloudOnline = true;
+        _stampSynced();
+        notifyListeners();
+        return;
+      }
+    }
+    await _pushToCloud();
   }
 
   String exportBackupJson() {
@@ -249,14 +306,18 @@ class ErpController extends ChangeNotifier {
     isSyncingOnline = true;
     notifyListeners();
     await saveState();
-    await Future.delayed(const Duration(milliseconds: 700));
+    if (!CloudSync.ready) await connectCloud();
+    final ok = CloudSync.ready && await _pushToCloud();
     isSyncingOnline = false;
-    final now = TimeOfDay.now();
-    lastSyncedTime =
-        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
-    showToast(currentLang == 'ur'
-        ? 'آن لائن کلاؤڈ اور آف لائن بیک اپ مکمل ہو گیا!'
-        : 'Online Cloud & Offline Local Backup Synced!');
+    if (ok) {
+      showToast(currentLang == 'ur'
+          ? 'آن لائن کلاؤڈ اور آف لائن بیک اپ مکمل ہو گیا!'
+          : 'Online Cloud & Offline Local Backup Synced!');
+    } else {
+      showToast(currentLang == 'ur'
+          ? 'انٹرنیٹ نہیں ہے۔ ڈیٹا فون میں محفوظ ہے، نیٹ آنے پر سنک ہو گا۔'
+          : 'No internet. Saved on phone, will sync when online.');
+    }
     notifyListeners();
   }
 

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "688286911123",
+    "project_id": "painterp-56e07",
+    "storage_bucket": "painterp-56e07.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:688286911123:android:bb79355b9848291b3a9b66",
+        "android_client_info": {
+          "package_name": "com.baburbrothers.babur_brothers_paint_erp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAMa-Q3CAQvZQZdJK-Qir-9QysxJBud2Uc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
