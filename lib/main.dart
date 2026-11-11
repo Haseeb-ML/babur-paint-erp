@@ -42,8 +42,6 @@ class _BaburBrothersPaintAppState extends State<BaburBrothersPaintApp> {
       color: color,
       height: ctrl.isRtl ? 1.55 : 1.3,
       fontFamilyFallback: const [
-        'Jameel Noori Nastaleeq',
-        'Noto Nastaliq Urdu',
         'Inter',
         'Segoe UI',
         'Roboto',
@@ -88,8 +86,7 @@ class _BaburBrothersPaintAppState extends State<BaburBrothersPaintApp> {
                       children: [
                         Column(
                           children: [
-                            // 1. Native Mobile Status Bar (Top Strip)
-                            _buildStatusBar(context, ctrl, isWideScreen),
+
                             // 2. Enterprise Application Header + 3 KPI Strip
                             _buildEnterpriseHeader(context, ctrl),
                             // 3. Scrollable Main Views Container
@@ -191,111 +188,6 @@ class _BaburBrothersPaintAppState extends State<BaburBrothersPaintApp> {
           ),
         );
       },
-    );
-  }
-
-  Widget _buildStatusBar(BuildContext context, ErpController ctrl, bool isWideScreen) {
-    return Directionality(
-      textDirection: TextDirection.ltr,
-      child: Container(
-        color: ctrl.isDarkMode ? const Color(0xFF020617) : ctrl.palette.headerStart,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    '10:24',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      fontFamily: 'Inter',
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Flexible(
-                    child: InkWell(
-                      onTap: () => ctrl.triggerCloudSync(),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF10B981).withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              ctrl.isSyncingOnline ? Icons.sync : Icons.cloud_done_rounded,
-                              size: 11,
-                              color: const Color(0xFF34D399),
-                            ),
-                            const SizedBox(width: 3),
-                            Flexible(
-                              child: Text(
-                                ctrl.isSyncingOnline ? 'Sync...' : 'Online',
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Color(0xFF6EE7B7),
-                                  fontSize: 9.5,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (isWideScreen)
-                  InkWell(
-                    onTap: () =>
-                        setState(() => _useMobileFrameOnDesktop = !_useMobileFrameOnDesktop),
-                    child: Padding(
-                      padding: const EdgeInsets.only(right: 6),
-                      child: Icon(
-                        _useMobileFrameOnDesktop
-                            ? Icons.fullscreen_rounded
-                            : Icons.phone_android_rounded,
-                        size: 14,
-                        color: Colors.amberAccent,
-                      ),
-                    ),
-                  ),
-                const Icon(Icons.signal_cellular_alt_rounded, size: 12, color: Colors.white),
-                const SizedBox(width: 3),
-                const Icon(Icons.wifi_rounded, size: 12, color: Colors.white),
-                const SizedBox(width: 3),
-                Container(
-                  width: 16,
-                  height: 8,
-                  padding: const EdgeInsets.all(1.0),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.white, width: 0.8),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF34D399),
-                      borderRadius: BorderRadius.circular(1),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
     );
   }
 
