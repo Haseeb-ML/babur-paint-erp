@@ -3594,179 +3594,195 @@ class ErpModals {
                     ),
                     const Divider(height: 18),
 
-                    // Barcode Laser Simulation Box
-                    Container(
-                      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF090D16),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFF334155)),
-                      ),
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.barcode_reader, color: Color(0xFFF59E0B), size: 28),
-                              const SizedBox(width: 8),
-                              Text(
-                                '||| | | |||| || | || ||| || |||',
-                                style: TextStyle(
-                                  fontFamily: 'monospace',
-                                  fontSize: 18,
-                                  letterSpacing: 2,
-                                  color: Colors.white.withValues(alpha: 0.85),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Container(
-                            height: 2,
-                            width: 220,
-                            decoration: const BoxDecoration(
-                              color: Colors.redAccent,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.red,
-                                  blurRadius: 6,
-                                  spreadRadius: 1,
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            ctrl.currentLang == 'ur'
-                                ? 'اسکینر تیار ہے — بارکوڈ گن سے اسکین کریں'
-                                : 'Scanner Ready — Aim barcode gun at can',
-                            style: const TextStyle(fontSize: 10.5, color: Colors.amberAccent),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-
-                    // Manual / Gun input field
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: barcodeCtrl,
-                            autofocus: true,
-                            textInputAction: TextInputAction.search,
-                            onSubmitted: handleScan,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: isDark ? Colors.white : Colors.black87,
-                            ),
-                            decoration: InputDecoration(
-                              filled: true,
-                              fillColor: cardBg,
-                              prefixIcon: const Icon(Icons.search_rounded, size: 20),
-                              hintText: ctrl.tr('barcodeSearchPh'),
-                              hintStyle: const TextStyle(fontSize: 11.5, color: Colors.grey),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.black26),
-                              ),
-                              suffixIcon: IconButton(
-                                icon: const Icon(Icons.arrow_forward_rounded, size: 20),
-                                onPressed: () => handleScan(barcodeCtrl.text),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Quick-Test Barcode Chips
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 4,
-                      children: [
-                        _testBarcodeChip(ctrl, 'GLD-IE-G', () => handleScan('GLD-IE-G')),
-                        _testBarcodeChip(ctrl, '896400010001', () => handleScan('896400010001')),
-                        _testBarcodeChip(ctrl, 'CR-RED-G', () => handleScan('CR-RED-G')),
-                        _testBarcodeChip(ctrl, 'BB-2K-W-G', () => handleScan('BB-2K-W-G')),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Last Scanned Item Preview Card
-                    if (lastScanned != null)
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF10B981).withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
-                        ),
-                        child: Row(
+                    // Scrollable content body to prevent keyboard bottom overflow
+                    Expanded(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
+                            // Barcode Laser Simulation Box
                             Container(
-                              width: 44,
-                              height: 44,
+                              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
                               decoration: BoxDecoration(
-                                color: ctrl.palette.primary.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(8),
+                                color: const Color(0xFF090D16),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: const Color(0xFF334155)),
                               ),
-                              child: const Icon(Icons.check_circle_rounded,
-                                  color: Color(0xFF10B981), size: 26),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
                               child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    lastScanned!.getName(ctrl.currentLang),
-                                    style: _txt(ctrl, size: 12, weight: FontWeight.bold),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(Icons.barcode_reader, color: Color(0xFFF59E0B), size: 26),
+                                      const SizedBox(width: 8),
+                                      Flexible(
+                                        child: FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          child: Text(
+                                            '||| | | |||| || | || ||| || |||',
+                                            style: TextStyle(
+                                              fontFamily: 'monospace',
+                                              fontSize: 16,
+                                              letterSpacing: 2,
+                                              color: Colors.white.withValues(alpha: 0.85),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  Text(
-                                    '${lastScanned!.series} • ${lastScanned!.getSize(ctrl.currentLang)}',
-                                    style: const TextStyle(fontSize: 10.5, color: Colors.grey),
-                                  ),
-                                  Text(
-                                    '${ctrl.formatMoney(lastScanned!.salePrice)} (Cart: ${ctrl.posCart.where((x) => x.prodId == lastScanned!.id).fold<int>(0, (s, it) => s + it.qty)})',
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF10B981),
+                                  const SizedBox(height: 8),
+                                  Container(
+                                    height: 2,
+                                    width: 200,
+                                    decoration: const BoxDecoration(
+                                      color: Colors.redAccent,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.red,
+                                          blurRadius: 6,
+                                          spreadRadius: 1,
+                                        ),
+                                      ],
                                     ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    ctrl.currentLang == 'ur'
+                                        ? 'اسکینر تیار ہے — بارکوڈ گن سے اسکین کریں'
+                                        : 'Scanner Ready — Aim barcode gun at can',
+                                    style: const TextStyle(fontSize: 10.5, color: Colors.amberAccent),
+                                    textAlign: TextAlign.center,
                                   ),
                                 ],
                               ),
                             ),
+                            const SizedBox(height: 14),
+
+                            // Manual / Gun input field
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: barcodeCtrl,
+                                    autofocus: true,
+                                    textInputAction: TextInputAction.search,
+                                    onSubmitted: handleScan,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: isDark ? Colors.white : Colors.black87,
+                                    ),
+                                    decoration: InputDecoration(
+                                      filled: true,
+                                      fillColor: cardBg,
+                                      prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                                      hintText: ctrl.tr('barcodeSearchPh'),
+                                      hintStyle: const TextStyle(fontSize: 11.5, color: Colors.grey),
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                        borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.black26),
+                                      ),
+                                      suffixIcon: IconButton(
+                                        icon: const Icon(Icons.arrow_forward_rounded, size: 20),
+                                        onPressed: () => handleScan(barcodeCtrl.text),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+
+                            // Quick-Test Barcode Chips
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 4,
+                              children: [
+                                _testBarcodeChip(ctrl, 'GLD-IE-G', () => handleScan('GLD-IE-G')),
+                                _testBarcodeChip(ctrl, '896400010001', () => handleScan('896400010001')),
+                                _testBarcodeChip(ctrl, 'CR-RED-G', () => handleScan('CR-RED-G')),
+                                _testBarcodeChip(ctrl, 'BB-2K-W-G', () => handleScan('BB-2K-W-G')),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+
+                            // Last Scanned Item Preview Card
+                            if (lastScanned != null)
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 44,
+                                      height: 44,
+                                      decoration: BoxDecoration(
+                                        color: ctrl.palette.primary.withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Icon(Icons.check_circle_rounded,
+                                          color: Color(0xFF10B981), size: 26),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            lastScanned!.getName(ctrl.currentLang),
+                                            style: _txt(ctrl, size: 12, weight: FontWeight.bold),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          Text(
+                                            '${lastScanned!.series} • ${lastScanned!.getSize(ctrl.currentLang)}',
+                                            style: const TextStyle(fontSize: 10.5, color: Colors.grey),
+                                          ),
+                                          Text(
+                                            '${ctrl.formatMoney(lastScanned!.salePrice)} (Cart: ${ctrl.posCart.where((x) => x.prodId == lastScanned!.id).fold<int>(0, (s, it) => s + it.qty)})',
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xFF10B981),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            else
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 24),
+                                child: Center(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.barcode_reader, size: 40, color: Colors.grey.withValues(alpha: 0.4)),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        ctrl.currentLang == 'ur'
+                                            ? 'ڈبے کا بارکوڈ اسکین کریں، خودکار کارٹ میں شامل ہوگا'
+                                            : 'Scan paint can barcode to add to cart automatically',
+                                        style: _txt(ctrl, size: 11, color: Colors.grey),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
                           ],
                         ),
-                      )
-                    else
-                      Expanded(
-                        child: Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.barcode_reader, size: 40, color: Colors.grey.withValues(alpha: 0.4)),
-                              const SizedBox(height: 8),
-                              Text(
-                                ctrl.currentLang == 'ur'
-                                    ? 'ڈبے کا بارکوڈ اسکین کریں، خودکار کارٹ میں شامل ہوگا'
-                                    : 'Scan paint can barcode to add to cart automatically',
-                                style: _txt(ctrl, size: 11, color: Colors.grey),
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
-                          ),
-                        ),
                       ),
+                    ),
+                    const SizedBox(height: 10),
 
-                    const Spacer(),
                     // Bottom actions
                     Row(
                       children: [
@@ -3892,30 +3908,37 @@ class ErpModals {
                         ),
                         const SizedBox(height: 8),
 
-                        // Barcode Bars Simulation
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
+                        // Barcode Bars Simulation - Wrapped in FittedBox to eliminate right overflow
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
                               '||||| |||| || |||| ||||| |||| |||||',
                               style: const TextStyle(
                                 fontFamily: 'monospace',
-                                fontSize: 24,
-                                letterSpacing: 2,
+                                fontSize: 20,
+                                letterSpacing: 1.5,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.black,
                               ),
                             ),
-                          ],
+                          ),
                         ),
-                        Text(
-                          barcodeValue,
-                          style: const TextStyle(
-                            fontFamily: 'monospace',
-                            fontSize: 11,
-                            letterSpacing: 2,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black,
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              barcodeValue,
+                              style: const TextStyle(
+                                fontFamily: 'monospace',
+                                fontSize: 11,
+                                letterSpacing: 2,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black,
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 6),

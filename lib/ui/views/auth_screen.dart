@@ -336,50 +336,25 @@ class _AuthScreenState extends State<AuthScreen> {
                               textAlign: TextAlign.center,
                             ),
                             const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: OutlinedButton.icon(
-                                    style: OutlinedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(vertical: 8),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                    ),
-                                    onPressed: () {
-                                      _loginUsernameCtrl.text = 'admin';
-                                      _loginPasswordCtrl.text = '123';
-                                      ctrl.login('admin', '123');
-                                    },
-                                    icon: const Icon(Icons.admin_panel_settings_outlined, size: 16),
-                                    label: Text(
-                                      isUrdu ? 'ایڈمن (Admin)' : 'Admin',
-                                      style: _txt(ctrl, size: 11, weight: FontWeight.bold),
-                                    ),
-                                  ),
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
                                 ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: OutlinedButton.icon(
-                                    style: OutlinedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(vertical: 8),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                    ),
-                                    onPressed: () {
-                                      _loginUsernameCtrl.text = 'cashier';
-                                      _loginPasswordCtrl.text = '123';
-                                      ctrl.login('cashier', '123');
-                                    },
-                                    icon: const Icon(Icons.point_of_sale_rounded, size: 16),
-                                    label: Text(
-                                      isUrdu ? 'کیشیئر (Cashier)' : 'Cashier',
-                                      style: _txt(ctrl, size: 11, weight: FontWeight.bold),
-                                    ),
-                                  ),
-                                ),
-                              ],
+                              ),
+                              onPressed: () {
+                                _loginUsernameCtrl.text = 'admin';
+                                _loginPasswordCtrl.text = '123';
+                                ctrl.login('admin', '123');
+                              },
+                              icon: const Icon(Icons.verified_user_rounded, size: 18, color: Color(0xFF10B981)),
+                              label: Text(
+                                isUrdu
+                                    ? 'بابر برادرز (مالک / ایڈمن اکاؤنٹ)'
+                                    : 'Babur Brothers (Owner / Admin Account)',
+                                style: _txt(ctrl, size: 11.5, weight: FontWeight.bold),
+                              ),
                             ),
                           ] else ...[
                             // REGISTER FORM

@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:babur_brothers_paint_erp/main.dart';
 import 'package:babur_brothers_paint_erp/state/erp_controller.dart';
+import 'package:babur_brothers_paint_erp/ui/modals/erp_modals.dart';
 
 void main() {
   testWidgets('Full ERP Modules, 3 Languages, Themes & Zero Overflow Test',
@@ -105,5 +106,47 @@ void main() {
     expect(ctrl.isAuthenticated, false);
     expect(ctrl.currentUser, null);
     await tester.pump(const Duration(seconds: 3));
+  });
+
+  testWidgets('Barcode Modals Zero-Overflow Test on Mobile Viewport',
+      (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(360, 640);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    final ctrl = ErpController();
+    await ctrl.init();
+    ctrl.isAuthenticated = true;
+
+    await tester.pumpWidget(BaburBrothersPaintApp(controller: ctrl));
+    await tester.pump();
+
+    final BuildContext ctx = tester.element(find.byType(Scaffold).first);
+
+    // 1. Open Barcode Scanner Modal
+    ErpModals.openBarcodeScannerModal(ctx, ctrl);
+    await tester.pumpAndSettle();
+
+    // Verify no overflow in scanner modal
+    expect(find.text('||| | | |||| || | || ||| || |||'), findsOneWidget);
+    expect(find.textContaining(ctrl.tr('btnPosCart')), findsOneWidget);
+
+    // Close scanner modal
+    await tester.tap(find.byIcon(Icons.close_rounded));
+    await tester.pumpAndSettle();
+
+    // 2. Open Barcode Label Dialog
+    final sampleProduct = ctrl.inventory.first;
+    ErpModals.openBarcodeLabelDialog(ctx, ctrl, sampleProduct);
+    await tester.pumpAndSettle();
+
+    // Verify barcode string inside label dialog
+    expect(find.text('||||| |||| || |||| ||||| |||| |||||'), findsOneWidget);
+    expect(find.text('BABUR & BROTHERS HARDWARE & PAINT'), findsOneWidget);
+
+    // Close barcode label dialog
+    await tester.tap(find.byIcon(Icons.close_rounded));
+    await tester.pumpAndSettle();
   });
 }
