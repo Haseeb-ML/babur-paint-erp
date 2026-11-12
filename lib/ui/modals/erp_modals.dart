@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/erp_models.dart';
+import '../../services/invoice_pdf_service.dart';
 import '../../state/erp_controller.dart';
 import '../../theme/app_themes.dart';
 import '../views/invoices_screen.dart';
@@ -841,8 +842,8 @@ class ErpModals {
           backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           contentPadding: const EdgeInsets.all(16),
-          content: SizedBox(
-            width: 340,
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 360),
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -859,8 +860,8 @@ class ErpModals {
                           borderRadius: BorderRadius.circular(8),
                           child: Image.asset(
                             'assets/images/logo.jpeg',
-                            width: 48,
-                            height: 48,
+                            width: 44,
+                            height: 44,
                             fit: BoxFit.cover,
                           ),
                         ),
@@ -874,16 +875,24 @@ class ErpModals {
                                 style: TextStyle(
                                   color: Color(0xFFF59E0B),
                                   fontWeight: FontWeight.w900,
-                                  fontSize: 12.5,
+                                  fontSize: 12,
                                 ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                               Text(
                                 ctrl.shopProfile.address,
-                                style: const TextStyle(color: Colors.white70, fontSize: 10.5),
+                                style: const TextStyle(color: Colors.white70, fontSize: 10),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              Text(
-                                '${ctrl.shopProfile.phone} • ${ctrl.shopProfile.email}',
-                                style: const TextStyle(color: Colors.amberAccent, fontSize: 10),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: AlignmentDirectional.centerStart,
+                                child: Text(
+                                  '${ctrl.shopProfile.phone} • ${ctrl.shopProfile.email}',
+                                  style: const TextStyle(color: Colors.amberAccent, fontSize: 9.5),
+                                ),
                               ),
                             ],
                           ),
@@ -893,7 +902,6 @@ class ErpModals {
                   ),
                   const SizedBox(height: 10),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
                         child: Text(
@@ -908,8 +916,14 @@ class ErpModals {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      const Text('Gobi\'s Official Dealer',
-                          style: TextStyle(fontSize: 10.5, color: Colors.black54)),
+                      const Flexible(
+                        child: Text(
+                          'Gobi\'s Official Dealer',
+                          style: TextStyle(fontSize: 10, color: Colors.black54),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ],
                   ),
                   const Divider(color: Colors.black26),
@@ -3474,6 +3488,7 @@ class ErpModals {
                   const SizedBox(height: 12),
                   Row(
                     children: [
+                      // 1. WhatsApp PDF Share Button
                       Expanded(
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
@@ -3483,33 +3498,46 @@ class ErpModals {
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
                           onPressed: () {
-                            shareViaWhatsApp(
-                              context,
-                              ctrl,
-                              phone: inv.customerPhone,
-                              message: invoiceText,
-                            );
+                            InvoicePdfService.shareInvoicePdf(context, ctrl, inv);
                           },
-                          icon: const Icon(Icons.share, size: 16),
+                          icon: const Icon(Icons.picture_as_pdf_rounded, size: 16),
                           label: Text(
-                            ctrl.currentLang == 'ur' ? 'واٹس ایپ پر بھیجیں' : 'WhatsApp',
-                            style: _txt(ctrl, size: 11.5, weight: FontWeight.bold, color: Colors.white),
+                            ctrl.currentLang == 'ur' ? 'پی ڈی ایف واٹس ایپ' : 'WhatsApp PDF',
+                            style: _txt(ctrl, size: 11, weight: FontWeight.bold, color: Colors.white),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
+
+                      // 2. Print / Save PDF Button
                       OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onPressed: () {
+                          InvoicePdfService.printInvoice(context, ctrl, inv);
+                        },
+                        icon: const Icon(Icons.print_rounded, size: 15),
+                        label: Text(ctrl.currentLang == 'ur' ? 'پرنٹ' : 'Print',
+                            style: _txt(ctrl, size: 11)),
+                      ),
+                      const SizedBox(width: 6),
+
+                      // 3. Copy Text Button
+                      IconButton(
+                        tooltip: ctrl.currentLang == 'ur' ? 'ٹیکسٹ کاپی کریں' : 'Copy Text',
+                        style: IconButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                          ),
                         ),
                         onPressed: () {
                           Clipboard.setData(ClipboardData(text: invoiceText));
                           ctrl.showToast(ctrl.currentLang == 'ur' ? 'بل کاپی ہو گیا' : 'Copied');
                         },
-                        icon: const Icon(Icons.copy_rounded, size: 15),
-                        label: Text(ctrl.currentLang == 'ur' ? 'کاپی' : 'Copy',
-                            style: _txt(ctrl, size: 11)),
+                        icon: const Icon(Icons.copy_rounded, size: 16),
                       ),
                     ],
                   ),

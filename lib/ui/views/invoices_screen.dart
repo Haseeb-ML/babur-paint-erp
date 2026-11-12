@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/erp_models.dart';
+import '../../services/invoice_pdf_service.dart';
 import '../../state/erp_controller.dart';
 import '../modals/erp_modals.dart';
 
@@ -568,55 +569,33 @@ class _AllInvoicesScreenState extends State<AllInvoicesScreen> {
               ),
               const SizedBox(width: 8),
 
-              // 2. WhatsApp Share Button
+              // 2. WhatsApp PDF Share Button
               IconButton.filledTonal(
-                tooltip: 'WhatsApp',
+                tooltip: isUrdu ? 'واٹس ایپ PDF بھیجیں' : 'Share PDF on WhatsApp',
                 style: IconButton.styleFrom(
                   backgroundColor: const Color(0xFF25D366).withValues(alpha: 0.15),
                   foregroundColor: const Color(0xFF25D366),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8)),
                 ),
-                onPressed: () {
-                  final buffer = StringBuffer();
-                  buffer.writeln('================================');
-                  buffer.writeln(ctrl.shopName);
-                  buffer.writeln('بابر اینڈ برادرز ہارڈویئر اینڈ پینٹ سٹور');
-                  buffer.writeln('فون: ${ctrl.shopPhone}');
-                  buffer.writeln('================================');
-                  buffer.writeln('بل نمبر / Invoice: ${inv.invoiceNo}');
-                  buffer.writeln('تاریخ / Date: ${inv.dateStr}');
-                  buffer.writeln(
-                      'گاہک / Customer: ${inv.customerName.isEmpty ? "Walk-in Customer" : inv.customerName}');
-                  if (inv.customerPhone.isNotEmpty &&
-                      inv.customerPhone != '0300-0000000') {
-                    buffer.writeln('رابطہ / Phone: ${inv.customerPhone}');
-                  }
-                  buffer.writeln('ادائیگی کی قسم / Mode: ${inv.mode}');
-                  buffer.writeln('--------------------------------');
-                  for (var i = 0; i < inv.items.length; i++) {
-                    final item = inv.items[i];
-                    buffer.writeln('${i + 1}. ${item.getName(ctrl.currentLang)}');
-                    buffer.writeln(
-                        '   ${item.qty} x ${ctrl.formatMoney(item.price)} = ${ctrl.formatMoney(item.subtotal)}');
-                  }
-                  buffer.writeln('--------------------------------');
-                  buffer.writeln('ٹوٹل / Subtotal: ${ctrl.formatMoney(inv.subtotal)}');
-                  if (inv.discount > 0) {
-                    buffer.writeln('رعایت / Discount: ${ctrl.formatMoney(inv.discount)}');
-                  }
-                  buffer.writeln('خالص بل / Total: ${ctrl.formatMoney(inv.total)}');
-                  buffer.writeln('================================');
-                  buffer.writeln('تشریف آوری کا شکریہ! جزاک اللہ خیراً');
+                onPressed: () =>
+                    InvoicePdfService.shareInvoicePdf(context, ctrl, inv),
+                icon: const Icon(Icons.picture_as_pdf_rounded, size: 16),
+              ),
+              const SizedBox(width: 4),
 
-                  ErpModals.shareViaWhatsApp(
-                    context,
-                    ctrl,
-                    phone: inv.customerPhone,
-                    message: buffer.toString(),
-                  );
-                },
-                icon: const Icon(Icons.share_rounded, size: 16),
+              // 3. Print / Save PDF Button
+              IconButton.filledTonal(
+                tooltip: isUrdu ? 'پرنٹ / پی ڈی ایف' : 'Print / Save PDF',
+                style: IconButton.styleFrom(
+                  backgroundColor: const Color(0xFF0284C7).withValues(alpha: 0.15),
+                  foregroundColor: const Color(0xFF0284C7),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                ),
+                onPressed: () =>
+                    InvoicePdfService.printInvoice(context, ctrl, inv),
+                icon: const Icon(Icons.print_rounded, size: 16),
               ),
               const SizedBox(width: 4),
 

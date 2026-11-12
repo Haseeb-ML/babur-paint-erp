@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:babur_brothers_paint_erp/main.dart';
+import 'package:babur_brothers_paint_erp/services/invoice_pdf_service.dart';
 import 'package:babur_brothers_paint_erp/state/erp_controller.dart';
 import 'package:babur_brothers_paint_erp/ui/modals/erp_modals.dart';
 import 'package:babur_brothers_paint_erp/ui/views/invoices_screen.dart';
@@ -197,12 +198,17 @@ void main() {
     ErpModals.openInvoiceDialog(ctx, ctrl, invoiceForEntry);
     await tester.pumpAndSettle();
 
-    // Verify invoice dialog opened with thermal receipt and WhatsApp button
+    // Verify invoice dialog opened with thermal receipt and WhatsApp PDF button
     expect(find.textContaining('INV-1042'), findsAtLeastNWidgets(1));
-    expect(find.byIcon(Icons.share), findsOneWidget);
+    expect(find.byIcon(Icons.picture_as_pdf_rounded), findsAtLeastNWidgets(1));
 
     // Close invoice dialog
     await tester.tap(find.byIcon(Icons.close_rounded).first);
     await tester.pumpAndSettle();
+
+    // 5. Test Invoice PDF Service generation
+    final pdfBytes = await InvoicePdfService.generateInvoicePdf(ctrl, invoiceForEntry);
+    expect(pdfBytes.isNotEmpty, true);
+    expect(pdfBytes.lengthInBytes, greaterThan(500));
   });
 }
