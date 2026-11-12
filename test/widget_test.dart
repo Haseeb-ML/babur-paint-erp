@@ -14,6 +14,7 @@ void main() {
 
     final ctrl = ErpController();
     await ctrl.init();
+    ctrl.isAuthenticated = true;
 
     await tester.pumpWidget(BaburBrothersPaintApp(controller: ctrl));
     await tester.pump();
@@ -65,6 +66,44 @@ void main() {
     expect(ctrl.inventory.length, initialCount);
 
     // Wait for any toast timers to complete
+    await tester.pump(const Duration(seconds: 3));
+  });
+
+  testWidgets('Authentication: Register, Login, and Logout flow test',
+      (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final ctrl = ErpController();
+    await ctrl.init();
+
+    await tester.pumpWidget(BaburBrothersPaintApp(controller: ctrl));
+    await tester.pump();
+
+    // 1. Should be on Login Screen by default
+    expect(ctrl.isAuthenticated, false);
+    expect(find.textContaining('Sign In'), findsWidgets);
+
+    // 2. Perform Login with default admin credentials
+    final loginOk = await ctrl.login('admin', '123');
+    expect(loginOk, true);
+    expect(ctrl.isAuthenticated, true);
+    expect(ctrl.currentUser?.role, 'Owner / Admin');
+    await tester.pump();
+
+    // 3. Register a new user
+    final regOk = await ctrl.register(
+      name: 'Asad Painter',
+      username: 'asad',
+      password: '321',
+      role: 'Cashier / Salesman',
+      phone: '03009998877',
+    );
+    expect(regOk, true);
+    expect(ctrl.currentUser?.name, 'Asad Painter');
+
+    // 4. Test Logout
+    await ctrl.logout();
+    expect(ctrl.isAuthenticated, false);
+    expect(ctrl.currentUser, null);
     await tester.pump(const Duration(seconds: 3));
   });
 }

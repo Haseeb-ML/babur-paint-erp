@@ -669,24 +669,47 @@ class ErpViews {
                 ],
               ),
               const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFBBF24),
-                    foregroundColor: const Color(0xFF0F172A),
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: Colors.white38),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      onPressed: () => ErpModals.openInvoicesHistoryModal(context, ctrl),
+                      icon: const Icon(Icons.receipt_long_rounded, size: 15, color: Color(0xFFFBBF24)),
+                      label: Text(
+                        '${ctrl.tr('invoicesHistoryBtn')} (${ctrl.invoices.length})',
+                        style: _txt(ctrl, size: 11, weight: FontWeight.bold, color: Colors.white),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                   ),
-                  onPressed: () => ErpModals.openPosCartModal(context, ctrl),
-                  icon: const Icon(Icons.shopping_bag_outlined, size: 16),
-                  label: Text(
-                    '${ctrl.tr('posBtnCheckout')} (${ctrl.cartItemCount})',
-                    style: _txt(ctrl,
-                        size: 12, weight: FontWeight.w800, color: const Color(0xFF0F172A)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFBBF24),
+                        foregroundColor: const Color(0xFF0F172A),
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      onPressed: () => ErpModals.openPosCartModal(context, ctrl),
+                      icon: const Icon(Icons.shopping_bag_outlined, size: 16),
+                      label: Text(
+                        '${ctrl.tr('posBtnCheckout')} (${ctrl.cartItemCount})',
+                        style: _txt(ctrl,
+                            size: 11.5, weight: FontWeight.w800, color: const Color(0xFF0F172A)),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
             ],
           ),
@@ -744,29 +767,73 @@ class ErpViews {
                   ),
                 ),
               ),
+              const SizedBox(width: 6),
+              InkWell(
+                onTap: () => ErpModals.openBarcodeScannerModal(context, ctrl),
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF059669),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.qr_code_scanner_rounded, size: 14, color: Colors.white),
+                      const SizedBox(width: 4),
+                      Text(
+                        ctrl.tr('btnScanBarcode'),
+                        style: _txt(ctrl,
+                            size: 11, weight: FontWeight.bold, color: Colors.white),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
         ),
         const SizedBox(height: 10),
 
-        // 3. Search Bar
+        // 3. Search Bar with Instant Barcode Scanner & Gun Input
         TextField(
           controller: searchCtrl,
           onChanged: (_) => ctrl.refresh(),
+          onSubmitted: (val) {
+            if (val.trim().isNotEmpty) {
+              final added = ctrl.scanAndAddToCart(val.trim());
+              if (added) {
+                searchCtrl.clear();
+                ctrl.refresh();
+              }
+            }
+          },
           style: _txt(ctrl, size: 12.5, color: textMain),
           decoration: InputDecoration(
-            hintText: ctrl.tr('posSearchPh'),
+            hintText: '${ctrl.tr('posSearchPh')} (یا بارکوڈ اسکین کریں)',
             hintStyle: _txt(ctrl, size: 12, color: Colors.grey),
             prefixIcon: const Icon(Icons.search_rounded, size: 20, color: Colors.grey),
-            suffixIcon: searchCtrl.text.isNotEmpty
-                ? IconButton(
+            suffixIcon: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (searchCtrl.text.isNotEmpty)
+                  IconButton(
                     icon: const Icon(Icons.clear, size: 18),
                     onPressed: () {
                       searchCtrl.clear();
                       ctrl.refresh();
                     },
-                  )
-                : null,
+                  ),
+                IconButton(
+                  icon: const Icon(Icons.qr_code_scanner_rounded,
+                      size: 20, color: Color(0xFFF59E0B)),
+                  tooltip: ctrl.tr('btnScanBarcode'),
+                  onPressed: () => ErpModals.openBarcodeScannerModal(context, ctrl),
+                ),
+                const SizedBox(width: 4),
+              ],
+            ),
             filled: true,
             fillColor: cardBg,
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -1480,6 +1547,7 @@ class ErpViews {
           child: Column(
             children: [
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Expanded(
                     child: Column(
@@ -1487,30 +1555,51 @@ class ErpViews {
                       children: [
                         Text(
                           ctrl.tr('invValLbl'),
-                          style: _txt(ctrl, size: 11.5, color: Colors.white70),
+                          style: _txt(ctrl, size: 11, color: Colors.white70),
                         ),
                         Text(
                           ctrl.formatMoney(ctrl.inventoryWorth),
                           style: _num(
-                              size: 18, weight: FontWeight.w900, color: const Color(0xFFFBBF24)),
+                              size: 16, weight: FontWeight.w900, color: const Color(0xFFFBBF24)),
                         ),
                       ],
                     ),
                   ),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFBBF24),
-                      foregroundColor: const Color(0xFF0F172A),
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: () => ErpModals.openProductModal(context, ctrl),
-                    child: Text(
-                      '+ ${ctrl.tr('btnNewStock')}',
-                      style: _txt(ctrl,
-                          size: 11.5, weight: FontWeight.w800, color: const Color(0xFF0F172A)),
-                    ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.white.withValues(alpha: 0.15),
+                          padding: const EdgeInsets.all(7),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            side: const BorderSide(color: Colors.white24),
+                          ),
+                        ),
+                        onPressed: () => ErpModals.openBarcodeScannerModal(context, ctrl),
+                        tooltip: ctrl.tr('btnScanBarcode'),
+                        icon: const Icon(Icons.qr_code_scanner_rounded, size: 16, color: Color(0xFFFBBF24)),
+                      ),
+                      const SizedBox(width: 5),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFBBF24),
+                          foregroundColor: const Color(0xFF0F172A),
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onPressed: () => ErpModals.openProductModal(context, ctrl),
+                        child: Text(
+                          ctrl.currentLang == 'ur'
+                              ? '+ نیا مال'
+                              : (ctrl.currentLang == 'ro' ? '+ Naya Maal' : '+ Add Stock'),
+                          style: _txt(ctrl,
+                              size: 10.5, weight: FontWeight.w800, color: const Color(0xFF0F172A)),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -1704,7 +1793,14 @@ class ErpViews {
                             style: _txt(ctrl, size: 10.5, weight: FontWeight.bold, color: Colors.white),
                           ),
                         ),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 4),
+                        IconButton(
+                          icon: const Icon(Icons.qr_code_rounded, size: 20, color: Color(0xFFF59E0B)),
+                          tooltip: ctrl.tr('barcodeLabelTitle'),
+                          visualDensity: VisualDensity.compact,
+                          onPressed: () => ErpModals.openBarcodeLabelDialog(context, ctrl, item),
+                        ),
+                        const SizedBox(width: 4),
                         _editDeleteButtons(
                           isDark: isDark,
                           onEdit: () =>
@@ -1911,6 +2007,31 @@ class ErpViews {
                           ctrl.formatMoney(rem),
                           isPaid ? const Color(0xFF059669) : const Color(0xFFD97706),
                         ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.share_rounded, size: 17, color: Color(0xFF25D366)),
+                        tooltip: 'Share via WhatsApp',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: () {
+                          final text = [
+                            '*${ctrl.shopProfile.nameRo.toUpperCase()}*',
+                            ctrl.shopProfile.address,
+                            'Helpline: ${ctrl.shopProfile.phone}',
+                            '--------------------------------',
+                            'Customer: ${c.getName(ctrl.currentLang)}',
+                            'Total Bill: ${ctrl.formatMoney(c.totalGiven)}',
+                            'Paid: ${ctrl.formatMoney(c.totalPaid)}',
+                            '*REMAINING BALANCE: ${ctrl.formatMoney(rem)}*',
+                            '--------------------------------',
+                            'Khata Hisab Reminder. Shukriya!',
+                          ].join('\n');
+                          ErpModals.shareViaWhatsApp(
+                            context,
+                            ctrl,
+                            phone: c.phone,
+                            text: text,
+                          );
+                        },
                       ),
                       _editDeleteButtons(
                         isDark: isDark,

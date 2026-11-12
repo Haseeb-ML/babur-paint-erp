@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'state/erp_controller.dart';
 import 'ui/modals/erp_modals.dart';
+import 'ui/views/auth_screen.dart';
 import 'ui/views/erp_views.dart';
 
 void main() async {
@@ -22,7 +23,7 @@ class BaburBrothersPaintApp extends StatefulWidget {
 
 class _BaburBrothersPaintAppState extends State<BaburBrothersPaintApp> {
   final TextEditingController _posSearchCtrl = TextEditingController();
-  bool _useMobileFrameOnDesktop = true;
+  final bool _useMobileFrameOnDesktop = true;
 
   @override
   void dispose() {
@@ -74,118 +75,125 @@ class _BaburBrothersPaintAppState extends State<BaburBrothersPaintApp> {
             colorSchemeSeed: ctrl.palette.primary,
             scaffoldBackgroundColor: const Color(0xFF0F172A),
           ),
-          home: LayoutBuilder(
-            builder: (context, constraints) {
-              final isWideScreen = constraints.maxWidth > 540;
-              final appBody = Directionality(
-                textDirection: ctrl.isRtl ? TextDirection.rtl : TextDirection.ltr,
-                child: Scaffold(
-                  backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-                  body: SafeArea(
-                    child: Stack(
-                      children: [
-                        Column(
-                          children: [
-
-                            // 2. Enterprise Application Header + 3 KPI Strip
-                            _buildEnterpriseHeader(context, ctrl),
-                            // 3. Scrollable Main Views Container
-                            Expanded(
-                              child: SingleChildScrollView(
-                                padding: const EdgeInsets.fromLTRB(12, 12, 12, 20),
-                                child: _buildActiveTabContent(context, ctrl),
-                              ),
-                            ),
-                            // 4. Bottom Navigation Bar
-                            _buildBottomNavBar(ctrl),
-                          ],
-                        ),
-                        // Toast Notification Banner
-                        if (ctrl.toastMessage != null)
-                          Positioned(
-                            top: 52,
-                            left: 18,
-                            right: 18,
-                            child: Material(
-                              color: Colors.transparent,
-                              child: Container(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: isDark
-                                      ? ctrl.palette.primary
-                                      : const Color(0xFF0F172A),
-                                  borderRadius: BorderRadius.circular(16),
-                                  boxShadow: const [
-                                    BoxShadow(
-                                      color: Colors.black38,
-                                      blurRadius: 14,
-                                      offset: Offset(0, 4),
+          home: !ctrl.isAuthenticated
+              ? AuthScreen(controller: ctrl)
+              : LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isWideScreen = constraints.maxWidth > 540;
+                    final appBody = Directionality(
+                      textDirection:
+                          ctrl.isRtl ? TextDirection.rtl : TextDirection.ltr,
+                      child: Scaffold(
+                        backgroundColor: isDark
+                            ? const Color(0xFF0F172A)
+                            : const Color(0xFFF1F5F9),
+                        body: SafeArea(
+                          child: Stack(
+                            children: [
+                              Column(
+                                children: [
+                                  // 2. Enterprise Application Header + 3 KPI Strip
+                                  _buildEnterpriseHeader(context, ctrl),
+                                  // 3. Scrollable Main Views Container
+                                  Expanded(
+                                    child: SingleChildScrollView(
+                                      padding: const EdgeInsets.fromLTRB(
+                                          12, 12, 12, 20),
+                                      child:
+                                          _buildActiveTabContent(context, ctrl),
                                     ),
-                                  ],
-                                ),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        ctrl.toastMessage!,
-                                        style: _txt(ctrl,
-                                            size: 12,
-                                            weight: FontWeight.bold,
-                                            color: Colors.white),
+                                  ),
+                                  // 4. Bottom Navigation Bar
+                                  _buildBottomNavBar(ctrl),
+                                ],
+                              ),
+                              // Toast Notification Banner
+                              if (ctrl.toastMessage != null)
+                                Positioned(
+                                  top: 52,
+                                  left: 18,
+                                  right: 18,
+                                  child: Material(
+                                    color: Colors.transparent,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 14, vertical: 10),
+                                      decoration: BoxDecoration(
+                                        color: isDark
+                                            ? ctrl.palette.primary
+                                            : const Color(0xFF0F172A),
+                                        borderRadius:
+                                            BorderRadius.circular(16),
+                                        boxShadow: const [
+                                          BoxShadow(
+                                            color: Colors.black38,
+                                            blurRadius: 14,
+                                            offset: Offset(0, 4),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              ctrl.toastMessage!,
+                                              style: _txt(ctrl,
+                                                  size: 12,
+                                                  weight: FontWeight.bold,
+                                                  color: Colors.white),
+                                            ),
+                                          ),
+                                          const Text(
+                                            '✓',
+                                            style: TextStyle(
+                                              color: Color(0xFFFBBF24),
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                    const Text(
-                                      '✓',
-                                      style: TextStyle(
-                                        color: Color(0xFFFBBF24),
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ],
+                                  ),
                                 ),
-                              ),
-                            ),
+                            ],
                           ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-
-              if (!isWideScreen || !_useMobileFrameOnDesktop) {
-                return appBody;
-              }
-
-              // Desktop / Browser Mobile Frame Wrapper (Matches client's HTML test design)
-              return Scaffold(
-                backgroundColor: const Color(0xFF0B1120),
-                body: Center(
-                  child: Container(
-                    width: 405,
-                    height: constraints.maxHeight.clamp(500.0, 860.0),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        width: 1.2,
-                      ),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Colors.black87,
-                          blurRadius: 45,
-                          offset: Offset(0, 20),
                         ),
-                      ],
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: appBody,
-                  ),
+                      ),
+                    );
+
+                    if (!isWideScreen || !_useMobileFrameOnDesktop) {
+                      return appBody;
+                    }
+
+                    // Desktop / Browser Mobile Frame Wrapper (Matches client's HTML test design)
+                    return Scaffold(
+                      backgroundColor: const Color(0xFF0B1120),
+                      body: Center(
+                        child: Container(
+                          width: 405,
+                          height: constraints.maxHeight.clamp(500.0, 860.0),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              width: 1.2,
+                            ),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Colors.black87,
+                                blurRadius: 45,
+                                offset: Offset(0, 20),
+                              ),
+                            ],
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: appBody,
+                        ),
+                      ),
+                    );
+                  },
                 ),
-              );
-            },
-          ),
         );
       },
     );
@@ -359,11 +367,124 @@ class _BaburBrothersPaintAppState extends State<BaburBrothersPaintApp> {
                       ),
                     ),
                   ),
+                  const SizedBox(width: 5),
+
+                  // 4. Logout / User Profile Button
+                  InkWell(
+                    onTap: () {
+                      showDialog(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
+                          title: Row(
+                            children: [
+                              const Icon(Icons.logout_rounded,
+                                  color: Colors.redAccent, size: 22),
+                              const SizedBox(width: 8),
+                              Text(ctrl.currentLang == 'ur'
+                                  ? 'لاگ آؤٹ تصدیق'
+                                  : 'Sign Out Confirmation'),
+                            ],
+                          ),
+                          content: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${ctrl.currentLang == 'ur' ? 'موجودہ صارف:' : 'Active User:'} ${ctrl.currentUser?.name ?? "Admin"} (${ctrl.currentUser?.role ?? "Admin"})',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(ctrl.currentLang == 'ur'
+                                  ? 'کیا آپ واقعی لاگ آؤٹ کر کے لاگ ان اسکرین پر جانا چاہتے ہیں؟'
+                                  : 'Are you sure you want to sign out and return to the login screen?'),
+                            ],
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx),
+                              child: Text(ctrl.currentLang == 'ur'
+                                  ? 'منسوخ (Cancel)'
+                                  : 'Cancel'),
+                            ),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.redAccent,
+                                foregroundColor: Colors.white,
+                              ),
+                              onPressed: () {
+                                Navigator.pop(ctx);
+                                ctrl.logout();
+                              },
+                              child: Text(ctrl.currentLang == 'ur'
+                                  ? 'لاگ آؤٹ (Sign Out)'
+                                  : 'Sign Out'),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(11),
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: Colors.redAccent.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(11),
+                        border: Border.all(
+                            color: Colors.redAccent.withValues(alpha: 0.4)),
+                      ),
+                      child: const Icon(
+                        Icons.logout_rounded,
+                        size: 16,
+                        color: Colors.redAccent,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ],
           ),
-          const SizedBox(height: 9),
+          const SizedBox(height: 6),
+
+          // User info badge bar
+          Row(
+            children: [
+              Container(
+                width: 7,
+                height: 7,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF10B981),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  '👤 ${ctrl.currentUser?.name ?? "Admin"} • ${ctrl.currentUser?.role ?? "Owner"}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFFFDE68A),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'Gobi\'s Dealer',
+                style: TextStyle(
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white.withValues(alpha: 0.7),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 7),
 
           // 3-Column KPI Strip inside Header
           Container(

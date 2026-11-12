@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../models/erp_models.dart';
 import '../../state/erp_controller.dart';
 import '../../theme/app_themes.dart';
@@ -622,6 +623,25 @@ class ErpModals {
                                 children: [
                                   Expanded(
                                     flex: 4,
+                                    child: Text(ctrl.tr('lblCartPhone'),
+                                        style: _txt(ctrl, size: 12, weight: FontWeight.w600)),
+                                  ),
+                                  Expanded(
+                                    flex: 6,
+                                    child: _compactInput(
+                                      ctrl,
+                                      custPhoneCtrl,
+                                      isNumber: true,
+                                      hint: '03001234567',
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    flex: 4,
                                     child: Text(ctrl.tr('lblCartPainter'),
                                         style: _txt(ctrl, size: 12, weight: FontWeight.w600)),
                                   ),
@@ -737,7 +757,7 @@ class ErpModals {
                                       borderRadius: BorderRadius.circular(12)),
                                 ),
                                 onPressed: () {
-                                  ctrl.completePosCheckout(
+                                  final inv = ctrl.completePosCheckout(
                                     mode: 'Cash',
                                     customerName: custNameCtrl.text,
                                     customerPhone: custPhoneCtrl.text,
@@ -745,6 +765,9 @@ class ErpModals {
                                     discount: disc,
                                   );
                                   Navigator.pop(ctx);
+                                  if (inv != null) {
+                                    openInvoiceDialog(context, ctrl, inv);
+                                  }
                                 },
                                 child: Text(
                                   ctrl.tr('btnCartCash'),
@@ -764,7 +787,7 @@ class ErpModals {
                                       borderRadius: BorderRadius.circular(12)),
                                 ),
                                 onPressed: () {
-                                  ctrl.completePosCheckout(
+                                  final inv = ctrl.completePosCheckout(
                                     mode: 'Udhar',
                                     customerName: custNameCtrl.text,
                                     customerPhone: custPhoneCtrl.text,
@@ -772,6 +795,9 @@ class ErpModals {
                                     discount: disc,
                                   );
                                   Navigator.pop(ctx);
+                                  if (inv != null) {
+                                    openInvoiceDialog(context, ctrl, inv);
+                                  }
                                 },
                                 child: Text(
                                   ctrl.tr('btnCartUdhar'),
@@ -1147,6 +1173,7 @@ class ErpModals {
   // ===========================================================================
   static void openProductModal(BuildContext context, ErpController ctrl, {PaintProduct? existing}) {
     final codeCtrl = TextEditingController(text: existing?.code ?? '');
+    final barcodeCtrl = TextEditingController(text: existing?.barcode ?? existing?.code ?? '');
     final nameCtrl = TextEditingController(text: existing?.getName(ctrl.currentLang) ?? '');
     final sizeCtrl = TextEditingController(text: existing?.getSize(ctrl.currentLang) ?? 'گیلن (3.64 لیٹر)');
     final costCtrl = TextEditingController(text: existing != null ? '${existing.costPrice.round()}' : '3800');
@@ -1207,6 +1234,30 @@ class ErpModals {
                           Expanded(
                             flex: 6,
                             child: _inputField(ctrl, nameCtrl, ctrl.tr('stkNamePh')),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _inputField(ctrl, barcodeCtrl, 'Barcode (EAN-13 / Code-128)'),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFF59E0B),
+                              foregroundColor: const Color(0xFF0F172A),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            onPressed: () {
+                              final gen = '8964000${(DateTime.now().millisecondsSinceEpoch % 1000000).toString().padLeft(6, '0')}';
+                              barcodeCtrl.text = gen;
+                              setModalState(() {});
+                            },
+                            icon: const Icon(Icons.auto_fix_high, size: 16),
+                            label: Text(ctrl.tr('autoGenerateBarcode'), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                           ),
                         ],
                       ),
@@ -1278,40 +1329,121 @@ class ErpModals {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: ctrl.palette.primary,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                          onPressed: () {
-                            final name = nameCtrl.text.trim();
-                            if (name.isEmpty) return;
-                            ctrl.saveOrUpdateProduct(
-                              existingId: existing?.id,
-                              code: codeCtrl.text.trim(),
-                              brand: brand,
-                              series: series,
-                              cat: cat,
-                              name: name,
-                              sizeLabel: sizeCtrl.text.trim().isEmpty ? 'Gallon' : sizeCtrl.text.trim(),
-                              costPrice: double.tryParse(costCtrl.text) ?? 3500,
-                              salePrice: double.tryParse(priceCtrl.text) ?? 4200,
-                              stock: int.tryParse(qtyCtrl.text) ?? 10,
-                              minStock: int.tryParse(minCtrl.text) ?? 4,
-                              colorHex: existing?.colorHex ?? '#93C5FD',
-                            );
-                            Navigator.pop(ctx);
-                          },
-                          child: Text(
-                            ctrl.tr('btnStkSave'),
-                            style: _txt(ctrl, size: 13, weight: FontWeight.bold, color: Colors.white),
+                      if (existing != null) ...[
+                        Row(
+                          children: [
+                            Expanded(
+                              flex: 1,
+                              child: OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.redAccent,
+                                  side: const BorderSide(color: Colors.redAccent),
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12)),
+                                ),
+                                onPressed: () {
+                                  confirmDelete(
+                                    context,
+                                    ctrl,
+                                    itemTitle: existing.getName(ctrl.currentLang),
+                                    onConfirm: () {
+                                      Navigator.pop(ctx);
+                                      ctrl.deleteProduct(existing.id);
+                                    },
+                                  );
+                                },
+                                icon: const Icon(Icons.delete_outline, size: 16),
+                                label: Text(
+                                  ctrl.currentLang == 'ur' ? 'حذف کریں' : 'Delete',
+                                  style: _txt(ctrl,
+                                      size: 12,
+                                      weight: FontWeight.bold,
+                                      color: Colors.redAccent),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              flex: 2,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: ctrl.palette.primary,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12)),
+                                ),
+                                onPressed: () {
+                                  final name = nameCtrl.text.trim();
+                                  if (name.isEmpty) return;
+                                  ctrl.saveOrUpdateProduct(
+                                    existingId: existing.id,
+                                    code: codeCtrl.text.trim(),
+                                    barcode: barcodeCtrl.text.trim(),
+                                    brand: brand,
+                                    series: series,
+                                    cat: cat,
+                                    name: name,
+                                    sizeLabel: sizeCtrl.text.trim().isEmpty
+                                        ? 'Gallon'
+                                        : sizeCtrl.text.trim(),
+                                    costPrice: double.tryParse(costCtrl.text) ?? 3500,
+                                    salePrice: double.tryParse(priceCtrl.text) ?? 4200,
+                                    stock: int.tryParse(qtyCtrl.text) ?? 10,
+                                    minStock: int.tryParse(minCtrl.text) ?? 4,
+                                    colorHex: existing.colorHex,
+                                  );
+                                  Navigator.pop(ctx);
+                                },
+                                child: Text(
+                                  ctrl.currentLang == 'ur' ? 'اپڈیٹ کریں' : 'Update Product',
+                                  style: _txt(ctrl,
+                                      size: 13,
+                                      weight: FontWeight.bold,
+                                      color: Colors.white),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ] else ...[
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: ctrl.palette.primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            onPressed: () {
+                              final name = nameCtrl.text.trim();
+                              if (name.isEmpty) return;
+                              ctrl.saveOrUpdateProduct(
+                                existingId: null,
+                                code: codeCtrl.text.trim(),
+                                barcode: barcodeCtrl.text.trim(),
+                                brand: brand,
+                                series: series,
+                                cat: cat,
+                                name: name,
+                                sizeLabel: sizeCtrl.text.trim().isEmpty ? 'Gallon' : sizeCtrl.text.trim(),
+                                costPrice: double.tryParse(costCtrl.text) ?? 3500,
+                                salePrice: double.tryParse(priceCtrl.text) ?? 4200,
+                                stock: int.tryParse(qtyCtrl.text) ?? 10,
+                                minStock: int.tryParse(minCtrl.text) ?? 4,
+                                colorHex: '#93C5FD',
+                              );
+                              Navigator.pop(ctx);
+                            },
+                            child: Text(
+                              ctrl.tr('btnStkSave'),
+                              style: _txt(ctrl, size: 13, weight: FontWeight.bold, color: Colors.white),
+                            ),
                           ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ),
@@ -1479,40 +1611,120 @@ class ErpModals {
                         }).toList(),
                       ),
                       const SizedBox(height: 14),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: ctrl.palette.primary,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                          onPressed: () {
-                            final nm = nameCtrl.text.trim().isEmpty
-                                ? 'Custom Shade'
-                                : nameCtrl.text.trim();
-                            ctrl.saveOrUpdateShade(
-                              existingId: existing?.id,
-                              code: codeCtrl.text.trim(),
-                              series: series,
-                              name: nm,
-                              hex: selectedHex,
-                              baseGallonPrice: double.tryParse(basePriceCtrl.text) ?? 4468,
-                              tintCostGallon: double.tryParse(tintPriceCtrl.text) ?? 250,
-                              formulaDesc: formulaCtrl.text.trim().isEmpty
-                                  ? 'Pigment Paste'
-                                  : formulaCtrl.text.trim(),
-                              formulaMl: double.tryParse(mlCtrl.text) ?? 18,
-                            );
-                            Navigator.pop(ctx);
-                          },
-                          child: Text(
-                            ctrl.tr('btnCshSave'),
-                            style: _txt(ctrl, size: 13, weight: FontWeight.bold, color: Colors.white),
+                      if (existing != null) ...[
+                        Row(
+                          children: [
+                            Expanded(
+                              flex: 1,
+                              child: OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.redAccent,
+                                  side: const BorderSide(color: Colors.redAccent),
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12)),
+                                ),
+                                onPressed: () {
+                                  confirmDelete(
+                                    context,
+                                    ctrl,
+                                    itemTitle:
+                                        '${existing.code} - ${existing.getName(ctrl.currentLang)}',
+                                    onConfirm: () {
+                                      Navigator.pop(ctx);
+                                      ctrl.deleteShade(existing.id);
+                                    },
+                                  );
+                                },
+                                icon: const Icon(Icons.delete_outline, size: 16),
+                                label: Text(
+                                  ctrl.currentLang == 'ur' ? 'حذف' : 'Delete',
+                                  style: _txt(ctrl,
+                                      size: 12,
+                                      weight: FontWeight.bold,
+                                      color: Colors.redAccent),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              flex: 2,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: ctrl.palette.primary,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12)),
+                                ),
+                                onPressed: () {
+                                  final nm = nameCtrl.text.trim().isEmpty
+                                      ? 'Custom Shade'
+                                      : nameCtrl.text.trim();
+                                  ctrl.saveOrUpdateShade(
+                                    existingId: existing.id,
+                                    code: codeCtrl.text.trim(),
+                                    series: series,
+                                    name: nm,
+                                    hex: selectedHex,
+                                    baseGallonPrice:
+                                        double.tryParse(basePriceCtrl.text) ?? 4468,
+                                    tintCostGallon:
+                                        double.tryParse(tintPriceCtrl.text) ?? 250,
+                                    formulaDesc: formulaCtrl.text.trim().isEmpty
+                                        ? 'Pigment Paste'
+                                        : formulaCtrl.text.trim(),
+                                    formulaMl: double.tryParse(mlCtrl.text) ?? 18,
+                                  );
+                                  Navigator.pop(ctx);
+                                },
+                                child: Text(
+                                  ctrl.currentLang == 'ur' ? 'اپڈیٹ شیڈ' : 'Update Shade',
+                                  style: _txt(ctrl,
+                                      size: 13,
+                                      weight: FontWeight.bold,
+                                      color: Colors.white),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ] else ...[
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: ctrl.palette.primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            onPressed: () {
+                              final nm = nameCtrl.text.trim().isEmpty
+                                  ? 'Custom Shade'
+                                  : nameCtrl.text.trim();
+                              ctrl.saveOrUpdateShade(
+                                existingId: null,
+                                code: codeCtrl.text.trim(),
+                                series: series,
+                                name: nm,
+                                hex: selectedHex,
+                                baseGallonPrice: double.tryParse(basePriceCtrl.text) ?? 4468,
+                                tintCostGallon: double.tryParse(tintPriceCtrl.text) ?? 250,
+                                formulaDesc: formulaCtrl.text.trim().isEmpty
+                                    ? 'Pigment Paste'
+                                    : formulaCtrl.text.trim(),
+                                formulaMl: double.tryParse(mlCtrl.text) ?? 18,
+                              );
+                              Navigator.pop(ctx);
+                            },
+                            child: Text(
+                              ctrl.tr('btnCshSave'),
+                              style: _txt(ctrl, size: 13, weight: FontWeight.bold, color: Colors.white),
+                            ),
                           ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ),
@@ -1834,38 +2046,112 @@ class ErpModals {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFF59E0B),
-                          foregroundColor: const Color(0xFF0F172A),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        onPressed: () {
-                          final nm = nameCtrl.text.trim();
-                          final gv = double.tryParse(givenCtrl.text) ?? 0;
-                          if (nm.isEmpty || gv <= 0) return;
-                          ctrl.saveOrUpdateCustomer(
-                            existingId: existing?.id,
-                            name: nm,
-                            phone: phoneCtrl.text.trim(),
-                            work: workCtrl.text.trim().isEmpty
-                                ? 'Paint & Hardware Supply'
-                                : workCtrl.text.trim(),
-                            totalGiven: gv,
-                            totalPaid: double.tryParse(paidCtrl.text) ?? 0,
-                          );
-                          Navigator.pop(ctx);
-                        },
-                        child: Text(
-                          ctrl.tr('btnNudSave'),
-                          style: _txt(ctrl,
-                              size: 13, weight: FontWeight.bold, color: const Color(0xFF0F172A)),
+                    if (existing != null) ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 1,
+                            child: OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.redAccent,
+                                side: const BorderSide(color: Colors.redAccent),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12)),
+                              ),
+                              onPressed: () {
+                                confirmDelete(
+                                  context,
+                                  ctrl,
+                                  itemTitle: existing.getName(ctrl.currentLang),
+                                  onConfirm: () {
+                                    Navigator.pop(ctx);
+                                    ctrl.deleteCustomer(existing.id);
+                                  },
+                                );
+                              },
+                              icon: const Icon(Icons.delete_outline, size: 16),
+                              label: Text(
+                                ctrl.currentLang == 'ur' ? 'حذف' : 'Delete',
+                                style: _txt(ctrl,
+                                    size: 12,
+                                    weight: FontWeight.bold,
+                                    color: Colors.redAccent),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            flex: 2,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFF59E0B),
+                                foregroundColor: const Color(0xFF0F172A),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12)),
+                              ),
+                              onPressed: () {
+                                final nm = nameCtrl.text.trim();
+                                final gv = double.tryParse(givenCtrl.text) ?? 0;
+                                if (nm.isEmpty || gv <= 0) return;
+                                ctrl.saveOrUpdateCustomer(
+                                  existingId: existing.id,
+                                  name: nm,
+                                  phone: phoneCtrl.text.trim(),
+                                  work: workCtrl.text.trim().isEmpty
+                                      ? 'Paint & Hardware Supply'
+                                      : workCtrl.text.trim(),
+                                  totalGiven: gv,
+                                  totalPaid: double.tryParse(paidCtrl.text) ?? 0,
+                                );
+                                Navigator.pop(ctx);
+                              },
+                              child: Text(
+                                ctrl.currentLang == 'ur' ? 'اپڈیٹ گاہک' : 'Update Customer',
+                                style: _txt(ctrl,
+                                    size: 13,
+                                    weight: FontWeight.bold,
+                                    color: const Color(0xFF0F172A)),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ] else ...[
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFF59E0B),
+                            foregroundColor: const Color(0xFF0F172A),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          onPressed: () {
+                            final nm = nameCtrl.text.trim();
+                            final gv = double.tryParse(givenCtrl.text) ?? 0;
+                            if (nm.isEmpty || gv <= 0) return;
+                            ctrl.saveOrUpdateCustomer(
+                              existingId: null,
+                              name: nm,
+                              phone: phoneCtrl.text.trim(),
+                              work: workCtrl.text.trim().isEmpty
+                                  ? 'Paint & Hardware Supply'
+                                  : workCtrl.text.trim(),
+                              totalGiven: gv,
+                              totalPaid: double.tryParse(paidCtrl.text) ?? 0,
+                            );
+                            Navigator.pop(ctx);
+                          },
+                          child: Text(
+                            ctrl.tr('btnNudSave'),
+                            style: _txt(ctrl,
+                                size: 13, weight: FontWeight.bold, color: const Color(0xFF0F172A)),
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -1940,34 +2226,107 @@ class ErpModals {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: ctrl.palette.primary,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        onPressed: () {
-                          final nm = compCtrl.text.trim();
-                          final tb = double.tryParse(totalCtrl.text) ?? 0;
-                          if (nm.isEmpty || tb <= 0) return;
-                          ctrl.saveOrUpdateSupplier(
-                            existingId: existing?.id,
-                            company: nm,
-                            lastSupply: supCtrl.text.trim().isEmpty
-                                ? "Gobi's Paint Stock"
-                                : supCtrl.text.trim(),
-                            totalBill: tb,
-                            paidBill: double.tryParse(paidCtrl.text) ?? 0,
-                          );
-                          Navigator.pop(ctx);
-                        },
-                        child: Text(ctrl.tr('btnNudSave'),
-                            style: _txt(ctrl, size: 13, weight: FontWeight.bold, color: Colors.white)),
+                    if (existing != null) ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 1,
+                            child: OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.redAccent,
+                                side: const BorderSide(color: Colors.redAccent),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12)),
+                              ),
+                              onPressed: () {
+                                confirmDelete(
+                                  context,
+                                  ctrl,
+                                  itemTitle: existing.getCompany(ctrl.currentLang),
+                                  onConfirm: () {
+                                    Navigator.pop(ctx);
+                                    ctrl.deleteSupplier(existing.id);
+                                  },
+                                );
+                              },
+                              icon: const Icon(Icons.delete_outline, size: 16),
+                              label: Text(
+                                ctrl.currentLang == 'ur' ? 'حذف' : 'Delete',
+                                style: _txt(ctrl,
+                                    size: 12,
+                                    weight: FontWeight.bold,
+                                    color: Colors.redAccent),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            flex: 2,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: ctrl.palette.primary,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12)),
+                              ),
+                              onPressed: () {
+                                final nm = compCtrl.text.trim();
+                                final tb = double.tryParse(totalCtrl.text) ?? 0;
+                                if (nm.isEmpty || tb <= 0) return;
+                                ctrl.saveOrUpdateSupplier(
+                                  existingId: existing.id,
+                                  company: nm,
+                                  lastSupply: supCtrl.text.trim().isEmpty
+                                      ? "Gobi's Paint Stock"
+                                      : supCtrl.text.trim(),
+                                  totalBill: tb,
+                                  paidBill: double.tryParse(paidCtrl.text) ?? 0,
+                                );
+                                Navigator.pop(ctx);
+                              },
+                              child: Text(
+                                ctrl.currentLang == 'ur' ? 'اپڈیٹ سپلائر' : 'Update Supplier',
+                                style: _txt(ctrl,
+                                    size: 13,
+                                    weight: FontWeight.bold,
+                                    color: Colors.white),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
+                    ] else ...[
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: ctrl.palette.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          onPressed: () {
+                            final nm = compCtrl.text.trim();
+                            final tb = double.tryParse(totalCtrl.text) ?? 0;
+                            if (nm.isEmpty || tb <= 0) return;
+                            ctrl.saveOrUpdateSupplier(
+                              existingId: null,
+                              company: nm,
+                              lastSupply: supCtrl.text.trim().isEmpty
+                                  ? "Gobi's Paint Stock"
+                                  : supCtrl.text.trim(),
+                              totalBill: tb,
+                              paidBill: double.tryParse(paidCtrl.text) ?? 0,
+                            );
+                            Navigator.pop(ctx);
+                          },
+                          child: Text(ctrl.tr('btnNudSave'),
+                              style: _txt(ctrl, size: 13, weight: FontWeight.bold, color: Colors.white)),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -2073,33 +2432,107 @@ class ErpModals {
                       const SizedBox(height: 8),
                       _inputField(ctrl, amtCtrl, ctrl.tr('expAmtPh'), isNumber: true),
                       const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor:
-                                type == 'expense' ? Colors.redAccent : const Color(0xFF059669),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                          onPressed: () {
-                            final amt = double.tryParse(amtCtrl.text) ?? 0;
-                            if (amt <= 0) return;
-                            ctrl.saveOrUpdateCashEntry(
-                              existingId: existing?.id,
-                              type: type,
-                              category: cat,
-                              note: noteCtrl.text.trim().isEmpty ? cat : noteCtrl.text.trim(),
-                              amount: amt,
-                            );
-                            Navigator.pop(ctx);
-                          },
-                          child: Text(ctrl.tr('btnExpSave'),
-                              style:
-                                  _txt(ctrl, size: 13, weight: FontWeight.bold, color: Colors.white)),
+                      if (existing != null) ...[
+                        Row(
+                          children: [
+                            Expanded(
+                              flex: 1,
+                              child: OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.redAccent,
+                                  side: const BorderSide(color: Colors.redAccent),
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12)),
+                                ),
+                                onPressed: () {
+                                  confirmDelete(
+                                    context,
+                                    ctrl,
+                                    itemTitle: existing.getDesc(ctrl.currentLang),
+                                    onConfirm: () {
+                                      Navigator.pop(ctx);
+                                      ctrl.deleteCashEntry(existing.id);
+                                    },
+                                  );
+                                },
+                                icon: const Icon(Icons.delete_outline, size: 16),
+                                label: Text(
+                                  ctrl.currentLang == 'ur' ? 'حذف' : 'Delete',
+                                  style: _txt(ctrl,
+                                      size: 12,
+                                      weight: FontWeight.bold,
+                                      color: Colors.redAccent),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              flex: 2,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: type == 'expense'
+                                      ? Colors.redAccent
+                                      : const Color(0xFF059669),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12)),
+                                ),
+                                onPressed: () {
+                                  final amt = double.tryParse(amtCtrl.text) ?? 0;
+                                  if (amt <= 0) return;
+                                  ctrl.saveOrUpdateCashEntry(
+                                    existingId: existing.id,
+                                    type: type,
+                                    category: cat,
+                                    note: noteCtrl.text.trim().isEmpty
+                                        ? cat
+                                        : noteCtrl.text.trim(),
+                                    amount: amt,
+                                  );
+                                  Navigator.pop(ctx);
+                                },
+                                child: Text(
+                                  ctrl.currentLang == 'ur' ? 'اپڈیٹ اندراج' : 'Update Entry',
+                                  style: _txt(ctrl,
+                                      size: 13,
+                                      weight: FontWeight.bold,
+                                      color: Colors.white),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
+                      ] else ...[
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor:
+                                  type == 'expense' ? Colors.redAccent : const Color(0xFF059669),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            onPressed: () {
+                              final amt = double.tryParse(amtCtrl.text) ?? 0;
+                              if (amt <= 0) return;
+                              ctrl.saveOrUpdateCashEntry(
+                                existingId: null,
+                                type: type,
+                                category: cat,
+                                note: noteCtrl.text.trim().isEmpty ? cat : noteCtrl.text.trim(),
+                                amount: amt,
+                              );
+                              Navigator.pop(ctx);
+                            },
+                            child: Text(ctrl.tr('btnExpSave'),
+                                style:
+                                    _txt(ctrl, size: 13, weight: FontWeight.bold, color: Colors.white)),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -2284,33 +2717,107 @@ class ErpModals {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: ctrl.palette.primary,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        onPressed: () {
-                          final nm = nameCtrl.text.trim();
-                          if (nm.isEmpty) return;
-                          ctrl.saveOrUpdatePainter(
-                            existingId: existing?.id,
-                            name: nm,
-                            phone: phoneCtrl.text.trim(),
-                            specialty: specCtrl.text.trim(),
-                            unpaidCommission: double.tryParse(commCtrl.text) ?? 0,
-                            tokensRedeemed: int.tryParse(tokCtrl.text) ?? 0,
-                            referredSales: double.tryParse(salesCtrl.text) ?? 0,
-                          );
-                          Navigator.pop(ctx);
-                        },
-                        child: Text(ctrl.tr('btnNudSave'),
-                            style: _txt(ctrl, size: 13, weight: FontWeight.bold, color: Colors.white)),
+                    if (existing != null) ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 1,
+                            child: OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.redAccent,
+                                side: const BorderSide(color: Colors.redAccent),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12)),
+                              ),
+                              onPressed: () {
+                                confirmDelete(
+                                  context,
+                                  ctrl,
+                                  itemTitle: existing.getName(ctrl.currentLang),
+                                  onConfirm: () {
+                                    Navigator.pop(ctx);
+                                    ctrl.deletePainter(existing.id);
+                                  },
+                                );
+                              },
+                              icon: const Icon(Icons.delete_outline, size: 16),
+                              label: Text(
+                                ctrl.currentLang == 'ur' ? 'حذف' : 'Delete',
+                                style: _txt(ctrl,
+                                    size: 12,
+                                    weight: FontWeight.bold,
+                                    color: Colors.redAccent),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            flex: 2,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: ctrl.palette.primary,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12)),
+                              ),
+                              onPressed: () {
+                                final nm = nameCtrl.text.trim();
+                                if (nm.isEmpty) return;
+                                ctrl.saveOrUpdatePainter(
+                                  existingId: existing.id,
+                                  name: nm,
+                                  phone: phoneCtrl.text.trim(),
+                                  specialty: specCtrl.text.trim(),
+                                  unpaidCommission:
+                                      double.tryParse(commCtrl.text) ?? 0,
+                                  tokensRedeemed: int.tryParse(tokCtrl.text) ?? 0,
+                                  referredSales:
+                                      double.tryParse(salesCtrl.text) ?? 0,
+                                );
+                                Navigator.pop(ctx);
+                              },
+                              child: Text(
+                                ctrl.currentLang == 'ur' ? 'اپڈیٹ پینٹر' : 'Update Painter',
+                                style: _txt(ctrl,
+                                    size: 13,
+                                    weight: FontWeight.bold,
+                                    color: Colors.white),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
+                    ] else ...[
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: ctrl.palette.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          onPressed: () {
+                            final nm = nameCtrl.text.trim();
+                            if (nm.isEmpty) return;
+                            ctrl.saveOrUpdatePainter(
+                              existingId: null,
+                              name: nm,
+                              phone: phoneCtrl.text.trim(),
+                              specialty: specCtrl.text.trim(),
+                              unpaidCommission: double.tryParse(commCtrl.text) ?? 0,
+                              tokensRedeemed: int.tryParse(tokCtrl.text) ?? 0,
+                              referredSales: double.tryParse(salesCtrl.text) ?? 0,
+                            );
+                            Navigator.pop(ctx);
+                          },
+                          child: Text(ctrl.tr('btnNudSave'),
+                              style: _txt(ctrl, size: 13, weight: FontWeight.bold, color: Colors.white)),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -2360,6 +2867,7 @@ class ErpModals {
     ErpController ctrl,
     TextEditingController controller, {
     bool isNumber = false,
+    String? hint,
     ValueChanged<String>? onChanged,
   }) {
     final isDark = ctrl.isDarkMode;
@@ -2377,6 +2885,8 @@ class ErpModals {
           filled: true,
           fillColor: isDark ? const Color(0xFF0F172A) : Colors.white,
           contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          hintText: hint,
+          hintStyle: const TextStyle(fontSize: 11, color: Colors.grey),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
             borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.black26),
@@ -2466,6 +2976,1009 @@ class ErpModals {
           borderRadius: BorderRadius.circular(6),
         ),
         child: Icon(icon, size: 14, color: Colors.white),
+      ),
+    );
+  }
+
+  // ===========================================================================
+  // 15. WHATSAPP BILL & REMINDER SHARING HELPER
+  // ===========================================================================
+  static Future<void> shareViaWhatsApp(
+    BuildContext context,
+    ErpController ctrl, {
+    required String phone,
+    String? message,
+    String? text,
+  }) async {
+    final body = message ?? text ?? '';
+    var cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
+    if (cleanPhone.startsWith('0')) {
+      cleanPhone = '92${cleanPhone.substring(1)}';
+    } else if (!cleanPhone.startsWith('92') && cleanPhone.length == 10) {
+      cleanPhone = '92$cleanPhone';
+    }
+    final encodedMsg = Uri.encodeComponent(body);
+    final waUrl = cleanPhone.isEmpty
+        ? 'https://api.whatsapp.com/send?text=$encodedMsg'
+        : 'https://api.whatsapp.com/send?phone=$cleanPhone&text=$encodedMsg';
+    final uri = Uri.parse(waUrl);
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        await Clipboard.setData(ClipboardData(text: body));
+        ctrl.showToast(ctrl.currentLang == 'ur'
+            ? 'بل کلپ بورڈ میں کاپی ہو گیا ہے'
+            : 'Bill copied to clipboard');
+      }
+    } catch (_) {
+      await Clipboard.setData(ClipboardData(text: body));
+      ctrl.showToast(ctrl.currentLang == 'ur'
+          ? 'بل کلپ بورڈ میں کاپی ہو گیا ہے'
+          : 'Bill copied to clipboard');
+    }
+  }
+
+  // ===========================================================================
+  // 16. INVOICE POPUP / THERMAL BILL DIALOG (ON CHECKOUT & HISTORY)
+  // ===========================================================================
+  static void openInvoiceDialog(BuildContext context, ErpController ctrl, InvoiceRecord inv) {
+    final isDark = ctrl.isDarkMode;
+    final cardBg = isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC);
+
+    // Build plain text invoice for clipboard / WhatsApp
+    final buffer = StringBuffer();
+    buffer.writeln('================================');
+    buffer.writeln(ctrl.shopName);
+    buffer.writeln('بابر اینڈ برادرز ہارڈویئر اینڈ پینٹ سٹور');
+    buffer.writeln('فون: ${ctrl.shopPhone}');
+    buffer.writeln('================================');
+    buffer.writeln('بل نمبر / Invoice: ${inv.invoiceNo}');
+    buffer.writeln('تاریخ / Date: ${inv.dateStr}');
+    buffer.writeln('گاہک / Customer: ${inv.customerName.isEmpty ? "Walk-in Customer" : inv.customerName}');
+    if (inv.customerPhone.isNotEmpty) {
+      buffer.writeln('رابطہ / Phone: ${inv.customerPhone}');
+    }
+    buffer.writeln('ادائیگی کی قسم / Mode: ${inv.mode}');
+    buffer.writeln('--------------------------------');
+    for (var i = 0; i < inv.items.length; i++) {
+      final item = inv.items[i];
+      buffer.writeln('${i + 1}. ${item.getName(ctrl.currentLang)}');
+      buffer.writeln('   ${item.qty} x ${ctrl.formatMoney(item.price)} = ${ctrl.formatMoney(item.subtotal)}');
+    }
+    buffer.writeln('--------------------------------');
+    buffer.writeln('ٹوٹل / Subtotal: ${ctrl.formatMoney(inv.subtotal)}');
+    if (inv.discount > 0) {
+      buffer.writeln('رعایت / Discount: ${ctrl.formatMoney(inv.discount)}');
+    }
+    buffer.writeln('خالص بل / Total: ${ctrl.formatMoney(inv.total)}');
+    buffer.writeln('================================');
+    buffer.writeln('تشریف آوری کا شکریہ! جزاک اللہ خیراً');
+
+    final invoiceText = buffer.toString();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: ctrl.isRtl ? TextDirection.rtl : TextDirection.ltr,
+        child: Dialog(
+          backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: SizedBox(
+            width: 380,
+            height: 560,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.receipt_long_rounded,
+                            size: 22, color: Color(0xFF10B981)),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              ctrl.currentLang == 'ur' ? 'کامیاب بل جاری ہوا' : 'Invoice Generated',
+                              style: _txt(ctrl, size: 14, weight: FontWeight.bold),
+                            ),
+                            Text(
+                              inv.invoiceNo,
+                              style: const TextStyle(
+                                  fontSize: 11, color: Colors.grey, fontFamily: 'monospace'),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: ctrl.currentLang == 'ur' ? 'بل حذف کریں' : 'Delete Invoice',
+                        onPressed: () {
+                          confirmDelete(
+                            context,
+                            ctrl,
+                            itemTitle: '${inv.invoiceNo} (${inv.customerName})',
+                            onConfirm: () {
+                              Navigator.pop(ctx);
+                              ctrl.deleteInvoice(inv.id);
+                            },
+                          );
+                        },
+                        icon: const Icon(Icons.delete_outline_rounded,
+                            size: 20, color: Colors.redAccent),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        icon: const Icon(Icons.close_rounded, size: 20),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 16),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: cardBg,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: isDark ? Colors.white12 : Colors.black12),
+                      ),
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Center(
+                              child: Column(
+                                children: [
+                                  Text(
+                                    ctrl.shopName,
+                                    style: _txt(ctrl, size: 13, weight: FontWeight.w900),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  Text(
+                                    'بابر اینڈ برادرز ہارڈویئر اینڈ پینٹ سٹور',
+                                    style: _txt(ctrl, size: 11.5, weight: FontWeight.bold, color: Colors.grey),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  Text(
+                                    ctrl.shopPhone,
+                                    style: const TextStyle(fontSize: 10, color: Colors.grey),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Divider(height: 14),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  '${ctrl.currentLang == "ur" ? "گاہک" : "Cust"}: ${inv.customerName.isEmpty ? "Walk-in" : inv.customerName}',
+                                  style: _txt(ctrl, size: 11, weight: FontWeight.w600),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: (inv.mode == 'Cash'
+                                            ? const Color(0xFF10B981)
+                                            : const Color(0xFFF59E0B))
+                                        .withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    inv.mode,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: inv.mode == 'Cash'
+                                          ? const Color(0xFF10B981)
+                                          : const Color(0xFFF59E0B),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Text(
+                              inv.dateStr,
+                              style: const TextStyle(fontSize: 10, color: Colors.grey),
+                            ),
+                            const Divider(height: 12),
+                            ...inv.items.map((it) => Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 2.5),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          it.getName(ctrl.currentLang),
+                                          style: _txt(ctrl, size: 11),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      Text(
+                                        '${it.qty} × ${ctrl.formatMoney(it.price)}',
+                                        style: const TextStyle(fontSize: 10.5, color: Colors.grey),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        ctrl.formatMoney(it.subtotal),
+                                        style: _txt(ctrl, size: 11, weight: FontWeight.bold),
+                                      ),
+                                    ],
+                                  ),
+                                )),
+                            const Divider(height: 12),
+                            if (inv.discount > 0) ...[
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    ctrl.currentLang == 'ur' ? 'سب ٹوٹل' : 'Subtotal',
+                                    style: _txt(ctrl, size: 11, color: Colors.grey),
+                                  ),
+                                  Text(
+                                    ctrl.formatMoney(inv.subtotal),
+                                    style: _txt(ctrl, size: 11, color: Colors.grey),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 3),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    ctrl.currentLang == 'ur' ? 'رعایت / ڈسکاؤنٹ' : 'Discount',
+                                    style: const TextStyle(
+                                        fontSize: 11, color: Colors.redAccent),
+                                  ),
+                                  Text(
+                                    '-${ctrl.formatMoney(inv.discount)}',
+                                    style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.redAccent),
+                                  ),
+                                ],
+                              ),
+                              const Divider(height: 10),
+                            ],
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(ctrl.tr('lblCartGrand'),
+                                    style: _txt(ctrl, size: 12, weight: FontWeight.bold)),
+                                Text(
+                                  ctrl.formatMoney(inv.total),
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w900,
+                                    color: isDark ? Colors.cyanAccent : ctrl.palette.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF25D366),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          onPressed: () {
+                            shareViaWhatsApp(
+                              context,
+                              ctrl,
+                              phone: inv.customerPhone,
+                              message: invoiceText,
+                            );
+                          },
+                          icon: const Icon(Icons.share, size: 16),
+                          label: Text(
+                            ctrl.currentLang == 'ur' ? 'واٹس ایپ پر بھیجیں' : 'WhatsApp',
+                            style: _txt(ctrl, size: 11.5, weight: FontWeight.bold, color: Colors.white),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: invoiceText));
+                          ctrl.showToast(ctrl.currentLang == 'ur' ? 'بل کاپی ہو گیا' : 'Copied');
+                        },
+                        icon: const Icon(Icons.copy_rounded, size: 15),
+                        label: Text(ctrl.currentLang == 'ur' ? 'کاپی' : 'Copy',
+                            style: _txt(ctrl, size: 11)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ===========================================================================
+  // 17. INVOICE HISTORY MODAL
+  // ===========================================================================
+  static void openInvoicesHistoryModal(BuildContext context, ErpController ctrl) {
+    final isDark = ctrl.isDarkMode;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => ListenableBuilder(
+        listenable: ctrl,
+        builder: (ctx, _) => Directionality(
+          textDirection: ctrl.isRtl ? TextDirection.rtl : TextDirection.ltr,
+          child: Container(
+            height: MediaQuery.of(ctx).size.height * 0.78,
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF0F172A) : Colors.white,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: ctrl.palette.primary.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(Icons.history_rounded, size: 22, color: ctrl.palette.primary),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        ctrl.currentLang == 'ur' ? 'حالیہ انوائسز اور بلز' : 'Recent Invoices',
+                        style: _txt(ctrl, size: 14, weight: FontWeight.bold),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      icon: const Icon(Icons.close_rounded, size: 20),
+                    ),
+                  ],
+                ),
+                const Divider(height: 16),
+                if (ctrl.invoicesHistory.isEmpty)
+                  Expanded(
+                    child: Center(
+                      child: Text(
+                        ctrl.currentLang == 'ur' ? 'ابھی کوئی بل موجود نہیں' : 'No invoices generated yet',
+                        style: _txt(ctrl, size: 12, color: Colors.grey),
+                      ),
+                    ),
+                  )
+                else
+                  Expanded(
+                    child: ListView.separated(
+                      itemCount: ctrl.invoicesHistory.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 8),
+                      itemBuilder: (ctx, idx) {
+                        final inv = ctrl.invoicesHistory[idx];
+                        final isCash = inv.mode == 'Cash';
+                        return Card(
+                          elevation: 0,
+                          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(color: isDark ? Colors.white12 : Colors.black12),
+                          ),
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                            leading: CircleAvatar(
+                              backgroundColor: (isCash ? const Color(0xFF10B981) : const Color(0xFFF59E0B))
+                                  .withValues(alpha: 0.15),
+                              child: Icon(
+                                isCash ? Icons.attach_money_rounded : Icons.pending_actions_rounded,
+                                color: isCash ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                                size: 18,
+                              ),
+                            ),
+                            title: Row(
+                              children: [
+                                Text(
+                                  inv.invoiceNo,
+                                  style: const TextStyle(
+                                      fontSize: 12, fontWeight: FontWeight.bold, fontFamily: 'monospace'),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: (isCash ? const Color(0xFF10B981) : const Color(0xFFF59E0B))
+                                        .withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    inv.mode,
+                                    style: TextStyle(
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.bold,
+                                      color: isCash ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            subtitle: Text(
+                              '${inv.customerName.isEmpty ? "Walk-in" : inv.customerName} • ${inv.dateStr}',
+                              style: const TextStyle(fontSize: 10.5, color: Colors.grey),
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      ctrl.formatMoney(inv.total),
+                                      style: _txt(ctrl, size: 12, weight: FontWeight.w900),
+                                    ),
+                                    Text(
+                                      '${inv.items.length} items',
+                                      style: const TextStyle(fontSize: 10, color: Colors.grey),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(width: 8),
+                                InkWell(
+                                  onTap: () {
+                                    confirmDelete(
+                                      context,
+                                      ctrl,
+                                      itemTitle: '${inv.invoiceNo} (${inv.customerName})',
+                                      onConfirm: () => ctrl.deleteInvoice(inv.id),
+                                    );
+                                  },
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(5),
+                                    decoration: BoxDecoration(
+                                      color: Colors.redAccent.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: const Icon(
+                                      Icons.delete_outline_rounded,
+                                      size: 16,
+                                      color: Colors.redAccent,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            onTap: () {
+                              openInvoiceDialog(context, ctrl, inv);
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ===========================================================================
+  // 18. BARCODE SCANNER MODAL (FOR INSTANT POS BILLING)
+  // ===========================================================================
+  static void openBarcodeScannerModal(BuildContext context, ErpController ctrl) {
+    final barcodeCtrl = TextEditingController();
+    PaintProduct? lastScanned;
+    int scanCount = 0;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) {
+          final isDark = ctrl.isDarkMode;
+          final cardBg = isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC);
+
+          void handleScan(String raw) {
+            final code = raw.trim();
+            if (code.isEmpty) return;
+            final product = ctrl.findProductByBarcode(code);
+            if (product != null) {
+              ctrl.addToPosCart(product);
+              setModalState(() {
+                lastScanned = product;
+                scanCount++;
+                barcodeCtrl.clear();
+              });
+            } else {
+              setModalState(() {
+                lastScanned = null;
+              });
+              ctrl.showToast(ctrl.tr('barcodeNotFound'));
+            }
+          }
+
+          return Directionality(
+            textDirection: ctrl.isRtl ? TextDirection.rtl : TextDirection.ltr,
+            child: Padding(
+              padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+              child: Container(
+                height: MediaQuery.of(ctx).size.height * 0.78,
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Header
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.qr_code_scanner_rounded,
+                              size: 24, color: Color(0xFFF59E0B)),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                ctrl.tr('barcodeScannerTitle'),
+                                style: _txt(ctrl, size: 14, weight: FontWeight.bold),
+                              ),
+                              Text(
+                                ctrl.currentLang == 'ur'
+                                    ? 'بارکوڈ گن سے اسکین کریں یا کوڈ درج کریں'
+                                    : 'Scan with barcode gun or type code',
+                                style: _txt(ctrl, size: 10.5, color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (scanCount > 0)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            margin: const EdgeInsets.only(right: 6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xFF10B981)),
+                            ),
+                            child: Text(
+                              ctrl.currentLang == 'ur' ? '$scanCount آئٹم شامل' : '$scanCount scanned',
+                              style: const TextStyle(fontSize: 10, color: Color(0xFF10B981), fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          icon: const Icon(Icons.close_rounded, size: 20),
+                        ),
+                      ],
+                    ),
+                    const Divider(height: 18),
+
+                    // Barcode Laser Simulation Box
+                    Container(
+                      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF090D16),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFF334155)),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.barcode_reader, color: Color(0xFFF59E0B), size: 28),
+                              const SizedBox(width: 8),
+                              Text(
+                                '||| | | |||| || | || ||| || |||',
+                                style: TextStyle(
+                                  fontFamily: 'monospace',
+                                  fontSize: 18,
+                                  letterSpacing: 2,
+                                  color: Colors.white.withValues(alpha: 0.85),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            height: 2,
+                            width: 220,
+                            decoration: const BoxDecoration(
+                              color: Colors.redAccent,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.red,
+                                  blurRadius: 6,
+                                  spreadRadius: 1,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            ctrl.currentLang == 'ur'
+                                ? 'اسکینر تیار ہے — بارکوڈ گن سے اسکین کریں'
+                                : 'Scanner Ready — Aim barcode gun at can',
+                            style: const TextStyle(fontSize: 10.5, color: Colors.amberAccent),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Manual / Gun input field
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: barcodeCtrl,
+                            autofocus: true,
+                            textInputAction: TextInputAction.search,
+                            onSubmitted: handleScan,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: cardBg,
+                              prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                              hintText: ctrl.tr('barcodeSearchPh'),
+                              hintStyle: const TextStyle(fontSize: 11.5, color: Colors.grey),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.black26),
+                              ),
+                              suffixIcon: IconButton(
+                                icon: const Icon(Icons.arrow_forward_rounded, size: 20),
+                                onPressed: () => handleScan(barcodeCtrl.text),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Quick-Test Barcode Chips
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: [
+                        _testBarcodeChip(ctrl, 'GLD-IE-G', () => handleScan('GLD-IE-G')),
+                        _testBarcodeChip(ctrl, '896400010001', () => handleScan('896400010001')),
+                        _testBarcodeChip(ctrl, 'CR-RED-G', () => handleScan('CR-RED-G')),
+                        _testBarcodeChip(ctrl, 'BB-2K-W-G', () => handleScan('BB-2K-W-G')),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Last Scanned Item Preview Card
+                    if (lastScanned != null)
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: ctrl.palette.primary.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(Icons.check_circle_rounded,
+                                  color: Color(0xFF10B981), size: 26),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    lastScanned!.getName(ctrl.currentLang),
+                                    style: _txt(ctrl, size: 12, weight: FontWeight.bold),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    '${lastScanned!.series} • ${lastScanned!.getSize(ctrl.currentLang)}',
+                                    style: const TextStyle(fontSize: 10.5, color: Colors.grey),
+                                  ),
+                                  Text(
+                                    '${ctrl.formatMoney(lastScanned!.salePrice)} (Cart: ${ctrl.posCart.where((x) => x.prodId == lastScanned!.id).fold<int>(0, (s, it) => s + it.qty)})',
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF10B981),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      Expanded(
+                        child: Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.barcode_reader, size: 40, color: Colors.grey.withValues(alpha: 0.4)),
+                              const SizedBox(height: 8),
+                              Text(
+                                ctrl.currentLang == 'ur'
+                                    ? 'ڈبے کا بارکوڈ اسکین کریں، خودکار کارٹ میں شامل ہوگا'
+                                    : 'Scan paint can barcode to add to cart automatically',
+                                style: _txt(ctrl, size: 11, color: Colors.grey),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                    const Spacer(),
+                    // Bottom actions
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: ctrl.palette.primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            onPressed: () {
+                              Navigator.pop(ctx);
+                              openPosCartModal(context, ctrl);
+                            },
+                            icon: const Icon(Icons.shopping_cart_checkout_rounded, size: 18),
+                            label: Text(
+                              '${ctrl.tr('btnPosCart')} (${ctrl.posCart.length}) - ${ctrl.formatMoney(ctrl.cartTotal)}',
+                              style: _txt(ctrl, size: 12, weight: FontWeight.bold, color: Colors.white),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  static Widget _testBarcodeChip(ErpController ctrl, String code, VoidCallback onTap) {
+    return ActionChip(
+      avatar: const Icon(Icons.barcode_reader, size: 14),
+      label: Text(code, style: const TextStyle(fontSize: 10, fontFamily: 'monospace')),
+      onPressed: onTap,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      visualDensity: VisualDensity.compact,
+    );
+  }
+
+  // ===========================================================================
+  // 19. BARCODE LABEL / STICKER PRINT PREVIEW DIALOG
+  // ===========================================================================
+  static void openBarcodeLabelDialog(BuildContext context, ErpController ctrl, PaintProduct item) {
+    final isDark = ctrl.isDarkMode;
+    final barcodeValue = item.barcode.isNotEmpty ? item.barcode : item.code;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: ctrl.isRtl ? TextDirection.rtl : TextDirection.ltr,
+        child: Dialog(
+          backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 360),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.label_important_outline_rounded,
+                          size: 22, color: Color(0xFFF59E0B)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          ctrl.tr('barcodeLabelTitle'),
+                          style: _txt(ctrl, size: 14, weight: FontWeight.bold),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        icon: const Icon(Icons.close_rounded, size: 20),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 16),
+
+                  // Sticker Canvas Preview
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.black26),
+                      boxShadow: const [
+                        BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          'BABUR & BROTHERS HARDWARE & PAINT',
+                          style: const TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.5,
+                            color: Colors.black,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          item.getName(ctrl.currentLang),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                        ),
+                        Text(
+                          '${item.series} • ${item.getSize(ctrl.currentLang)}',
+                          style: const TextStyle(fontSize: 10, color: Colors.black54),
+                        ),
+                        const SizedBox(height: 8),
+
+                        // Barcode Bars Simulation
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              '||||| |||| || |||| ||||| |||| |||||',
+                              style: const TextStyle(
+                                fontFamily: 'monospace',
+                                fontSize: 24,
+                                letterSpacing: 2,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          barcodeValue,
+                          style: const TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 11,
+                            letterSpacing: 2,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.black,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            'MRP: ${ctrl.formatMoney(item.salePrice)}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            Clipboard.setData(ClipboardData(text: barcodeValue));
+                            ctrl.showToast(ctrl.currentLang == 'ur'
+                                ? 'بارکوڈ کاپی ہو گیا'
+                                : 'Barcode copied');
+                          },
+                          icon: const Icon(Icons.copy_rounded, size: 16),
+                          label: Text(ctrl.currentLang == 'ur' ? 'کاپی کوڈ' : 'Copy Code',
+                              style: _txt(ctrl, size: 11.5)),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: ctrl.palette.primary,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          onPressed: () {
+                            ctrl.showToast(ctrl.currentLang == 'ur'
+                                ? 'اسٹیکر پرنٹ کمانڈ بھیج دی گئی'
+                                : 'Label sent to thermal sticker printer');
+                          },
+                          icon: const Icon(Icons.print_rounded, size: 16),
+                          label: Text(ctrl.tr('barcodePrintBtn'),
+                              style: _txt(ctrl, size: 11.5, weight: FontWeight.bold, color: Colors.white)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

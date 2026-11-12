@@ -31,6 +31,16 @@ class ErpController extends ChangeNotifier {
   List<SupplierAccount> suppliers = [];
   List<PainterAccount> painters = [];
   List<CashLedgerEntry> cashLedger = [];
+  List<InvoiceRecord> invoices = [];
+
+  // User & Authentication Management
+  List<ErpUser> users = [];
+  ErpUser? currentUser;
+  bool isAuthenticated = false;
+
+  static const String _kUsersKey = 'babur_brothers_users_v1';
+  static const String _kCurrentUserKey = 'babur_brothers_current_user_v1';
+  static const String _kIsAuthKey = 'babur_brothers_is_auth_v1';
 
   String? toastMessage;
   bool isSyncingOnline = false;
@@ -38,6 +48,9 @@ class ErpController extends ChangeNotifier {
 
   ErpThemePalette get palette => AppThemes.palettes[paletteIndex % AppThemes.palettes.length];
   bool get isRtl => currentLang == 'ur';
+  String get shopName => shopProfile.getName(currentLang);
+  String get shopPhone => shopProfile.phone;
+  List<InvoiceRecord> get invoicesHistory => invoices;
 
   String tr(String key) => AppStrings.tr(currentLang, key);
 
@@ -59,6 +72,7 @@ class ErpController extends ChangeNotifier {
     suppliers = GobisInitialData.initialSuppliers;
     painters = GobisInitialData.initialPainters;
     cashLedger = GobisInitialData.initialCashLedger;
+    invoices = [];
 
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -66,11 +80,158 @@ class ErpController extends ChangeNotifier {
       if (raw != null && raw.isNotEmpty) {
         loadFromJsonString(raw, notify: false);
       }
+
+      // Initialize Users & Auth Session
+      final usersRaw = prefs.getString(_kUsersKey);
+      if (usersRaw != null && usersRaw.isNotEmpty) {
+        users = ErpUser.decodeList(usersRaw);
+      }
+      if (users.isEmpty) {
+        users = [
+          ErpUser(
+            id: 'admin-1',
+            name: 'Babur Brothers (Owner)',
+            username: 'admin',
+            password: '123',
+            role: 'Owner / Admin',
+            phone: '03000952862',
+          ),
+          ErpUser(
+            id: 'cashier-1',
+            name: 'Counter Cashier',
+            username: 'cashier',
+            password: '123',
+            role: 'Cashier / Salesman',
+            phone: '03001234567',
+          ),
+        ];
+        await prefs.setString(_kUsersKey, ErpUser.encodeList(users));
+      }
+
+      final isAuth = prefs.getBool(_kIsAuthKey) ?? false;
+      final currentUserId = prefs.getString(_kCurrentUserKey);
+      if (isAuth && currentUserId != null) {
+        final match = users.where((u) => u.id == currentUserId).firstOrNull;
+        if (match != null) {
+          currentUser = match;
+          isAuthenticated = true;
+        }
+      }
     } catch (_) {
       // Fallback to in-memory defaults if SharedPreferences fails
     }
     notifyListeners();
   }
+
+  // =========================================================================
+  // USER AUTHENTICATION & SESSION MANAGEMENT
+  // =========================================================================
+  Future<bool> login(String usernameOrPhone, String password) async {
+    final cleanInput = usernameOrPhone.trim().toLowerCase();
+    final cleanPass = password.trim();
+
+    final user = users.where((u) =>
+        u.username.trim().toLowerCase() == cleanInput ||
+        u.phone.trim() == cleanInput ||
+        u.name.trim().toLowerCase() == cleanInput).firstOrNull;
+
+    if (user == null) {
+      showToast(currentLang == 'ur'
+          ? 'صارف موجود نہیں ہے! درست یوزر نیم درج کریں'
+          : 'User not found! Please check username/phone');
+      return false;
+    }
+
+    if (user.password.trim() != cleanPass) {
+      showToast(currentLang == 'ur'
+          ? 'غلط پاس ورڈ! دوبارہ کوشش کریں'
+          : 'Incorrect password! Please try again');
+      return false;
+    }
+
+    currentUser = user;
+    isAuthenticated = true;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_kIsAuthKey, true);
+      await prefs.setString(_kCurrentUserKey, user.id);
+    } catch (_) {}
+
+    showToast(currentLang == 'ur'
+        ? 'خوش آمدید، ${user.name}!'
+        : 'Welcome back, ${user.name}!');
+    notifyListeners();
+    return true;
+  }
+
+  Future<bool> register({
+    required String name,
+    required String username,
+    required String password,
+    required String role,
+    String phone = '',
+  }) async {
+    final cleanName = name.trim();
+    final cleanUsername = username.trim();
+    final cleanPass = password.trim();
+    final cleanPhone = phone.trim();
+
+    if (cleanName.isEmpty || cleanUsername.isEmpty || cleanPass.isEmpty) {
+      showToast(currentLang == 'ur'
+          ? 'تمام مطلوبہ خانے پر کریں!'
+          : 'Please fill in all required fields!');
+      return false;
+    }
+
+    final exists = users.any((u) =>
+        u.username.trim().toLowerCase() == cleanUsername.toLowerCase());
+    if (exists) {
+      showToast(currentLang == 'ur'
+          ? 'یہ یوزر نیم پہلے سے موجود ہے! دوسرا منتخب کریں'
+          : 'Username already exists! Choose another');
+      return false;
+    }
+
+    final newUser = ErpUser(
+      id: 'usr-${DateTime.now().millisecondsSinceEpoch}',
+      name: cleanName,
+      username: cleanUsername,
+      password: cleanPass,
+      role: role,
+      phone: cleanPhone,
+    );
+
+    users.add(newUser);
+    currentUser = newUser;
+    isAuthenticated = true;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kUsersKey, ErpUser.encodeList(users));
+      await prefs.setBool(_kIsAuthKey, true);
+      await prefs.setString(_kCurrentUserKey, newUser.id);
+    } catch (_) {}
+
+    showToast(currentLang == 'ur'
+        ? 'اکاؤنٹ بن گیا! خوش آمدید، $cleanName'
+        : 'Account created! Welcome, $cleanName');
+    notifyListeners();
+    return true;
+  }
+
+  Future<void> logout() async {
+    isAuthenticated = false;
+    currentUser = null;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_kIsAuthKey, false);
+      await prefs.remove(_kCurrentUserKey);
+    } catch (_) {}
+    showToast(currentLang == 'ur' ? 'کامیابی سے لاگ آؤٹ ہو گئے' : 'Logged out successfully');
+    notifyListeners();
+  }
+
 
   static const String _kUpdatedAtKey = 'babur_brothers_updated_at_v1';
   Timer? _cloudDebounce;
@@ -147,6 +308,7 @@ class ErpController extends ChangeNotifier {
       'suppliers': suppliers.map((e) => e.toMap()).toList(),
       'painters': painters.map((e) => e.toMap()).toList(),
       'cashLedger': cashLedger.map((e) => e.toMap()).toList(),
+      'invoices': invoices.map((e) => e.toMap()).toList(),
     };
     return jsonEncode(map);
   }
@@ -195,6 +357,11 @@ class ErpController extends ChangeNotifier {
             .map((e) => CashLedgerEntry.fromMap(Map<String, dynamic>.from(e)))
             .toList();
       }
+      if (map['invoices'] != null) {
+        invoices = (map['invoices'] as List)
+            .map((e) => InvoiceRecord.fromMap(Map<String, dynamic>.from(e)))
+            .toList();
+      }
       if (notify) {
         saveState();
         notifyListeners();
@@ -214,6 +381,7 @@ class ErpController extends ChangeNotifier {
     suppliers = GobisInitialData.initialSuppliers;
     painters = GobisInitialData.initialPainters;
     cashLedger = GobisInitialData.initialCashLedger;
+    invoices = [];
     selectedShadeIndex = 1;
     await saveState();
     showToast(currentLang == 'ur'
@@ -424,6 +592,32 @@ class ErpController extends ChangeNotifier {
     notifyListeners();
   }
 
+  PaintProduct? findProductByBarcode(String query) {
+    final clean = query.trim().toLowerCase();
+    if (clean.isEmpty) return null;
+    try {
+      return inventory.firstWhere((p) =>
+          p.code.toLowerCase() == clean ||
+          p.barcode.toLowerCase() == clean ||
+          p.id.toString() == clean);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  bool scanAndAddToCart(String barcode) {
+    final product = findProductByBarcode(barcode);
+    if (product != null) {
+      addToPosCart(product);
+      showToast(currentLang == 'ur'
+          ? '${product.nameUr} بارکوڈ سے بل میں شامل ہو گیا!'
+          : '${product.nameRo} added via Barcode!');
+      return true;
+    }
+    showToast(tr('barcodeNotFound'));
+    return false;
+  }
+
   void changeCartQty(int index, int delta) {
     if (index < 0 || index >= posCart.length) return;
     posCart[index].qty += delta;
@@ -449,7 +643,7 @@ class ErpController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void completePosCheckout({
+  InvoiceRecord? completePosCheckout({
     required String mode, // 'Cash' or 'Udhar'
     required String customerName,
     required String customerPhone,
@@ -458,7 +652,7 @@ class ErpController extends ChangeNotifier {
   }) {
     if (posCart.isEmpty) {
       showToast(tr('cartEmpty'));
-      return;
+      return null;
     }
     double subtotal = 0;
     double totalProfit = 0;
@@ -475,6 +669,7 @@ class ErpController extends ChangeNotifier {
     totalProfit = (totalProfit - discount) > 0 ? (totalProfit - discount) : 0;
 
     final String cName = customerName.trim().isEmpty ? tr('walkInCust') : customerName.trim();
+    final String cPhone = customerPhone.trim().isEmpty ? '0300-0000000' : customerPhone.trim();
 
     if (painterId != null && painterId > 0) {
       final pIdx = painters.indexWhere((p) => p.id == painterId);
@@ -489,15 +684,47 @@ class ErpController extends ChangeNotifier {
     final itemsDescRo = posCart.map((i) => '${i.nameRo} ×${i.qty}').join(' + ');
     final itemsDescEn = posCart.map((i) => '${i.nameEn} ×${i.qty}').join(' + ');
 
+    final now = DateTime.now();
+    final dateStr =
+        '${now.day}/${now.month}/${now.year} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    final invoiceNo = 'INV-${(invoices.length + 1001)}';
+
+    final invoiceRecord = InvoiceRecord(
+      id: now.millisecondsSinceEpoch,
+      invoiceNo: invoiceNo,
+      customerName: cName,
+      customerPhone: cPhone,
+      mode: mode,
+      items: posCart
+          .map((i) => CartItem(
+                prodId: i.prodId,
+                code: i.code,
+                nameUr: i.nameUr,
+                nameRo: i.nameRo,
+                nameEn: i.nameEn,
+                price: i.price,
+                cost: i.cost,
+                qty: i.qty,
+              ))
+          .toList(),
+      subtotal: subtotal,
+      discount: discount,
+      total: finalBill,
+      painterId: painterId,
+      dateStr: dateStr,
+      timestamp: now.millisecondsSinceEpoch,
+    );
+    invoices.insert(0, invoiceRecord);
+
     if (mode == 'Cash') {
       cashLedger.insert(
         0,
         CashLedgerEntry(
-          id: DateTime.now().millisecondsSinceEpoch,
+          id: now.millisecondsSinceEpoch,
           type: 'income',
-          catUr: 'پوائنٹ آف سیل نقد بل',
-          catRo: 'POS Naqad Bill',
-          catEn: 'POS Counter Cash Sale',
+          catUr: 'پوائنٹ آف سیل نقد بل ($invoiceNo)',
+          catRo: 'POS Naqad Bill ($invoiceNo)',
+          catEn: 'POS Cash Sale ($invoiceNo)',
           descUr: '$cName - $itemsDescUr',
           descRo: '$cName - $itemsDescRo',
           descEn: '$cName - $itemsDescEn',
@@ -509,43 +736,123 @@ class ErpController extends ChangeNotifier {
         ),
       );
       showToast(currentLang == 'ur'
-          ? 'نقد بل مکمل! رقم آمدن میں جمع ہو گئی۔'
-          : 'Cash Invoice Completed!');
+          ? 'نقد بل نمبر $invoiceNo بن گیا!'
+          : 'Cash Bill $invoiceNo Generated!');
     } else {
-      customers.insert(
-        0,
-        UdharCustomer(
-          id: DateTime.now().millisecondsSinceEpoch,
-          nameUr: cName,
-          nameRo: cName,
-          nameEn: cName,
-          phone: customerPhone.trim().isEmpty ? '0300-0000000' : customerPhone.trim(),
-          workUr: itemsDescUr,
-          workRo: itemsDescRo,
-          workEn: itemsDescEn,
-          totalGiven: finalBill,
-          totalPaid: 0,
-          history: [
-            UdharHistoryEntry(
-              id: DateTime.now().millisecondsSinceEpoch + 1,
-              type: 'given',
-              amount: finalBill,
-              descUr: 'پوائنٹ آف سیل ادھار بل ($itemsDescUr)',
-              descRo: 'POS Udhaar Bill ($itemsDescRo)',
-              descEn: 'POS Credit Invoice ($itemsDescEn)',
-              dateStr: 'Today',
-            ),
-          ],
-        ),
-      );
+      final existingCustIdx = customers.indexWhere((c) =>
+          (cPhone != '0300-0000000' && c.phone == cPhone) ||
+          c.nameUr == cName ||
+          c.nameRo.toLowerCase() == cName.toLowerCase() ||
+          c.nameEn.toLowerCase() == cName.toLowerCase());
+
+      if (existingCustIdx >= 0) {
+        customers[existingCustIdx].totalGiven += finalBill;
+        customers[existingCustIdx].history.insert(
+          0,
+          UdharHistoryEntry(
+            id: now.millisecondsSinceEpoch + 1,
+            type: 'given',
+            amount: finalBill,
+            descUr: 'بل نمبر $invoiceNo ($itemsDescUr)',
+            descRo: 'Bill No $invoiceNo ($itemsDescRo)',
+            descEn: 'Invoice $invoiceNo ($itemsDescEn)',
+            dateStr: dateStr,
+          ),
+        );
+      } else {
+        customers.insert(
+          0,
+          UdharCustomer(
+            id: now.millisecondsSinceEpoch,
+            nameUr: cName,
+            nameRo: cName,
+            nameEn: cName,
+            phone: cPhone,
+            workUr: itemsDescUr,
+            workRo: itemsDescRo,
+            workEn: itemsDescEn,
+            totalGiven: finalBill,
+            totalPaid: 0,
+            history: [
+              UdharHistoryEntry(
+                id: now.millisecondsSinceEpoch + 1,
+                type: 'given',
+                amount: finalBill,
+                descUr: 'بل نمبر $invoiceNo ($itemsDescUr)',
+                descRo: 'Bill No $invoiceNo ($itemsDescRo)',
+                descEn: 'Invoice $invoiceNo ($itemsDescEn)',
+                dateStr: dateStr,
+              ),
+            ],
+          ),
+        );
+      }
       showToast(currentLang == 'ur'
-          ? 'بل گاہک کے ادھار کھاتے میں درج ہو گیا!'
-          : 'Invoice posted to Customer Credit!');
+          ? 'ادھار بل نمبر $invoiceNo درج ہو گیا!'
+          : 'Credit Bill $invoiceNo Generated!');
     }
 
     posCart.clear();
     saveState();
     notifyListeners();
+    return invoiceRecord;
+  }
+
+  void deleteInvoice(int id) {
+    final idx = invoices.indexWhere((i) => i.id == id);
+    if (idx < 0) return;
+    final inv = invoices[idx];
+
+    // 1. Revert product inventory stock
+    for (final item in inv.items) {
+      final pIdx = inventory.indexWhere((p) => p.id == item.prodId);
+      if (pIdx >= 0) {
+        inventory[pIdx].stock += item.qty;
+      }
+    }
+
+    // 2. Revert cash ledger if Cash sale
+    if (inv.mode == 'Cash') {
+      cashLedger.removeWhere((c) =>
+          c.catUr.contains(inv.invoiceNo) ||
+          c.catRo.contains(inv.invoiceNo) ||
+          c.catEn.contains(inv.invoiceNo));
+    } else {
+      // 3. Revert udhar/credit customer balance
+      final cIdx = customers.indexWhere((c) =>
+          c.nameUr == inv.customerName ||
+          c.nameRo.toLowerCase() == inv.customerName.toLowerCase() ||
+          c.nameEn.toLowerCase() == inv.customerName.toLowerCase() ||
+          (inv.customerPhone.isNotEmpty && c.phone == inv.customerPhone));
+      if (cIdx >= 0) {
+        customers[cIdx].totalGiven =
+            (customers[cIdx].totalGiven - inv.total).clamp(0, double.infinity);
+        customers[cIdx].history.removeWhere((h) =>
+            h.descUr.contains(inv.invoiceNo) ||
+            h.descRo.contains(inv.invoiceNo) ||
+            h.descEn.contains(inv.invoiceNo));
+      }
+    }
+
+    // 4. Revert painter referral and commission
+    if (inv.painterId != null && inv.painterId! > 0) {
+      final pIdx = painters.indexWhere((p) => p.id == inv.painterId);
+      if (pIdx >= 0) {
+        final comm = (inv.total * 0.05).roundToDouble();
+        painters[pIdx].referredSales =
+            (painters[pIdx].referredSales - inv.total).clamp(0, double.infinity);
+        painters[pIdx].unpaidCommission =
+            (painters[pIdx].unpaidCommission - comm).clamp(0, double.infinity);
+      }
+    }
+
+    // 5. Remove from invoices list
+    invoices.removeAt(idx);
+    saveState();
+    notifyListeners();
+    showToast(currentLang == 'ur'
+        ? 'انوائس اور اسٹاک بحال کر کے ڈیلیٹ کر دی گئی!'
+        : 'Invoice deleted and inventory restored!');
   }
 
   // =========================================================================
@@ -707,6 +1014,7 @@ class ErpController extends ChangeNotifier {
   void saveOrUpdateProduct({
     int? existingId,
     required String code,
+    String? barcode,
     required String brand,
     required String series,
     required String cat,
@@ -718,6 +1026,9 @@ class ErpController extends ChangeNotifier {
     required int minStock,
     String colorHex = '#93C5FD',
   }) {
+    final finalBarcode = (barcode != null && barcode.trim().isNotEmpty)
+        ? barcode.trim()
+        : (code.trim().isNotEmpty ? code.trim() : '8964000${DateTime.now().millisecondsSinceEpoch % 1000000}');
     if (existingId != null) {
       final idx = inventory.indexWhere((p) => p.id == existingId);
       if (idx >= 0) {
@@ -725,6 +1036,7 @@ class ErpController extends ChangeNotifier {
         inventory[idx] = PaintProduct(
           id: existingId,
           code: code,
+          barcode: finalBarcode,
           brand: brand,
           series: series,
           cat: cat,
@@ -749,6 +1061,7 @@ class ErpController extends ChangeNotifier {
         PaintProduct(
           id: DateTime.now().millisecondsSinceEpoch,
           code: code.isEmpty ? 'GB-${inventory.length + 1}' : code,
+          barcode: finalBarcode,
           brand: brand,
           series: series,
           cat: cat,

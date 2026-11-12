@@ -63,6 +63,7 @@ class ShopProfile {
 class PaintProduct {
   int id;
   String code;
+  String barcode;
   String brand; // Gobis, Berger, Brighto, Master, Hardware
   String series; // Decorative, Carman NC, Silverline, BigBang 2K, Tusker 2K, Stoving, Epoxy & Ind, Timberline, Ancillaries
   String cat; // Emulsion, Weather, Enamel, NC2K, StovingEpoxy, Wood, Hardware
@@ -83,6 +84,7 @@ class PaintProduct {
   PaintProduct({
     required this.id,
     required this.code,
+    String? barcode,
     required this.brand,
     required this.series,
     required this.cat,
@@ -99,7 +101,7 @@ class PaintProduct {
     required this.stock,
     required this.minStock,
     required this.colorHex,
-  });
+  }) : barcode = (barcode != null && barcode.isNotEmpty) ? barcode : code;
 
   String getName(String lang) {
     if (lang == 'ur') return nameUr;
@@ -134,6 +136,7 @@ class PaintProduct {
   Map<String, dynamic> toMap() => {
         'id': id,
         'code': code,
+        'barcode': barcode,
         'brand': brand,
         'series': series,
         'cat': cat,
@@ -155,6 +158,7 @@ class PaintProduct {
   factory PaintProduct.fromMap(Map<String, dynamic> map) => PaintProduct(
         id: map['id'] ?? DateTime.now().millisecondsSinceEpoch,
         code: map['code'] ?? '',
+        barcode: map['barcode'] ?? map['code'] ?? '',
         brand: map['brand'] ?? 'Gobis',
         series: map['series'] ?? 'Decorative',
         cat: map['cat'] ?? 'Emulsion',
@@ -200,6 +204,8 @@ class CartItem {
     if (lang == 'ro') return nameRo;
     return nameEn;
   }
+
+  double get subtotal => price * qty;
 
   Map<String, dynamic> toMap() => {
         'prodId': prodId,
@@ -672,4 +678,173 @@ class CashLedgerEntry {
   static String encodeList(List<dynamic> list) =>
       jsonEncode(list.map((e) => e.toMap()).toList());
 }
+
+class InvoiceRecord {
+  int id;
+  String invoiceNo;
+  String customerName;
+  String customerPhone;
+  String mode; // 'Cash' or 'Udhar'
+  List<CartItem> items;
+  double subtotal;
+  double discount;
+  double total;
+  int? painterId;
+  String dateStr;
+  int timestamp;
+
+  InvoiceRecord({
+    required this.id,
+    required this.invoiceNo,
+    required this.customerName,
+    required this.customerPhone,
+    required this.mode,
+    required this.items,
+    required this.subtotal,
+    required this.discount,
+    required this.total,
+    this.painterId,
+    required this.dateStr,
+    required this.timestamp,
+  });
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'invoiceNo': invoiceNo,
+        'customerName': customerName,
+        'customerPhone': customerPhone,
+        'mode': mode,
+        'items': items.map((i) => i.toMap()).toList(),
+        'subtotal': subtotal,
+        'discount': discount,
+        'total': total,
+        'painterId': painterId,
+        'dateStr': dateStr,
+        'timestamp': timestamp,
+      };
+
+  factory InvoiceRecord.fromMap(Map<String, dynamic> map) => InvoiceRecord(
+        id: map['id'] ?? DateTime.now().millisecondsSinceEpoch,
+        invoiceNo: map['invoiceNo'] ?? '',
+        customerName: map['customerName'] ?? '',
+        customerPhone: map['customerPhone'] ?? '',
+        mode: map['mode'] ?? 'Cash',
+        items: (map['items'] as List<dynamic>? ?? [])
+            .map((e) => CartItem.fromMap(Map<String, dynamic>.from(e as Map)))
+            .toList(),
+        subtotal: (map['subtotal'] ?? 0).toDouble(),
+        discount: (map['discount'] ?? 0).toDouble(),
+        total: (map['total'] ?? 0).toDouble(),
+        painterId: map['painterId'],
+        dateStr: map['dateStr'] ?? '',
+        timestamp: map['timestamp'] ?? DateTime.now().millisecondsSinceEpoch,
+      );
+
+  static String encodeList(List<InvoiceRecord> list) =>
+      jsonEncode(list.map((e) => e.toMap()).toList());
+
+  static List<InvoiceRecord> decodeList(String raw) {
+    if (raw.trim().isEmpty) return [];
+    try {
+      final List<dynamic> list = jsonDecode(raw);
+      return list
+          .map((e) => InvoiceRecord.fromMap(Map<String, dynamic>.from(e as Map)))
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  String toShareText(ShopProfile shop, String lang) {
+    final buffer = StringBuffer();
+    buffer.writeln('================================');
+    buffer.writeln('*${shop.nameRo.toUpperCase()}*');
+    buffer.writeln(shop.address);
+    buffer.writeln('Helpline: ${shop.phone}');
+    buffer.writeln('================================');
+    buffer.writeln('Bill No: $invoiceNo');
+    buffer.writeln('Date: $dateStr');
+    buffer.writeln('Customer: $customerName');
+    if (customerPhone.isNotEmpty && customerPhone != '0300-0000000') {
+      buffer.writeln('Phone: $customerPhone');
+    }
+    buffer.writeln('Payment Mode: $mode');
+    buffer.writeln('--------------------------------');
+    for (int i = 0; i < items.length; i++) {
+      final it = items[i];
+      final itemTotal = (it.price * it.qty).toStringAsFixed(0);
+      buffer.writeln('${i + 1}. ${it.getName(lang)}');
+      buffer.writeln('   Qty: ${it.qty} x Rs ${it.price.toStringAsFixed(0)} = Rs $itemTotal');
+    }
+    buffer.writeln('--------------------------------');
+    buffer.writeln('Subtotal: Rs ${subtotal.toStringAsFixed(0)}');
+    if (discount > 0) {
+      buffer.writeln('Discount: -Rs ${discount.toStringAsFixed(0)}');
+    }
+    buffer.writeln('*TOTAL BILL: Rs ${total.toStringAsFixed(0)}*');
+    buffer.writeln('================================');
+    buffer.writeln('Shukriya! Thank you for your business.');
+    return buffer.toString();
+  }
+}
+
+class ErpUser {
+  final String id;
+  final String name;
+  final String username;
+  final String password;
+  final String role; // 'Owner / Admin', 'Manager', 'Cashier'
+  final String phone;
+  final String shopName;
+  final int createdAt;
+
+  ErpUser({
+    required this.id,
+    required this.name,
+    required this.username,
+    required this.password,
+    required this.role,
+    this.phone = '',
+    this.shopName = 'Babur & Brothers Hardware & Paint Store',
+    int? createdAt,
+  }) : createdAt = createdAt ?? DateTime.now().millisecondsSinceEpoch;
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'name': name,
+        'username': username,
+        'password': password,
+        'role': role,
+        'phone': phone,
+        'shopName': shopName,
+        'createdAt': createdAt,
+      };
+
+  factory ErpUser.fromMap(Map<String, dynamic> map) => ErpUser(
+        id: map['id']?.toString() ?? '',
+        name: map['name'] ?? '',
+        username: map['username'] ?? '',
+        password: map['password'] ?? '',
+        role: map['role'] ?? 'Owner / Admin',
+        phone: map['phone'] ?? '',
+        shopName: map['shopName'] ?? 'Babur & Brothers Hardware & Paint Store',
+        createdAt: map['createdAt'] is int ? map['createdAt'] : null,
+      );
+
+  static String encodeList(List<ErpUser> list) =>
+      jsonEncode(list.map((e) => e.toMap()).toList());
+
+  static List<ErpUser> decodeList(String raw) {
+    if (raw.trim().isEmpty) return [];
+    try {
+      final List<dynamic> list = jsonDecode(raw);
+      return list
+          .map((e) => ErpUser.fromMap(Map<String, dynamic>.from(e as Map)))
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+}
+
 
