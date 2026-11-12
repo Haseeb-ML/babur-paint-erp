@@ -569,9 +569,9 @@ class _AllInvoicesScreenState extends State<AllInvoicesScreen> {
               ),
               const SizedBox(width: 8),
 
-              // 2. Open / Print PDF View Button
+              // 2. Direct Print Button (Native System Print Spooler)
               IconButton.filledTonal(
-                tooltip: isUrdu ? 'انوائس PDF دیکھیں اور پرنٹ کریں' : 'View PDF & Print',
+                tooltip: isUrdu ? 'انوائس پرنٹ کریں' : 'Print Invoice',
                 style: IconButton.styleFrom(
                   backgroundColor: const Color(0xFF0284C7).withValues(alpha: 0.15),
                   foregroundColor: const Color(0xFF0284C7),
@@ -579,14 +579,14 @@ class _AllInvoicesScreenState extends State<AllInvoicesScreen> {
                       borderRadius: BorderRadius.circular(8)),
                 ),
                 onPressed: () =>
-                    InvoicePdfService.openInvoicePdfPreview(context, ctrl, inv),
-                icon: const Icon(Icons.picture_as_pdf_rounded, size: 16),
+                    InvoicePdfService.printInvoice(context, ctrl, inv),
+                icon: const Icon(Icons.print_rounded, size: 16),
               ),
               const SizedBox(width: 4),
 
-              // 3. WhatsApp PDF Share Button
+              // 3. Direct Share PDF Button (WhatsApp / System Share)
               IconButton.filledTonal(
-                tooltip: isUrdu ? 'واٹس ایپ پر PDF بھیجیں' : 'Share PDF on WhatsApp',
+                tooltip: isUrdu ? 'پی ڈی ایف شیئر کریں' : 'Share PDF',
                 style: IconButton.styleFrom(
                   backgroundColor: const Color(0xFF25D366).withValues(alpha: 0.15),
                   foregroundColor: const Color(0xFF25D366),

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'state/erp_controller.dart';
 import 'ui/modals/erp_modals.dart';
@@ -8,10 +10,36 @@ import 'ui/views/invoices_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final controller = ErpController();
-  await controller.init();
+
+  try {
+    await controller.init();
+  } catch (error, stackTrace) {
+    FlutterError.reportError(
+      FlutterErrorDetails(
+        exception: error,
+        stack: stackTrace,
+        library: 'Babur Brothers ERP',
+        context: ErrorDescription('Failed to initialize ERP controller'),
+      ),
+    );
+  }
+
   runApp(BaburBrothersPaintApp(controller: controller));
-  // Online sync runs in background; app works fully offline if it fails.
-  controller.connectCloud();
+
+  // Keep the app usable offline; cloud sync is background-only and timed out.
+  unawaited(
+    controller.connectCloud().catchError((Object error, StackTrace stackTrace) {
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stackTrace,
+          library: 'Babur Brothers ERP',
+          context: ErrorDescription('Cloud sync failed during startup'),
+        ),
+      );
+      return null;
+    }),
+  );
 }
 
 class BaburBrothersPaintApp extends StatefulWidget {

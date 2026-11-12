@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart' show BuildContext, MaterialPageRoute, Navigator;
-import 'package:flutter/services.dart' show Clipboard, ClipboardData, rootBundle;
-import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -10,6 +9,39 @@ import '../state/erp_controller.dart';
 import '../ui/views/invoice_pdf_preview_screen.dart';
 
 class InvoicePdfService {
+  static String _clean(String input) {
+    if (input.isEmpty) return '';
+    return input
+        .replaceAll('’', "'")
+        .replaceAll('‘', "'")
+        .replaceAll('“', '"')
+        .replaceAll('”', '"')
+        .replaceAll('–', '-')
+        .replaceAll('—', '-')
+        .replaceAll('•', '-')
+        .replaceAll('×', 'x')
+        .replaceAll(RegExp(r'[^\x20-\x7E\n\r\t]'), ' ')
+        .trim();
+  }
+
+  static String _safeItemName(CartItem it) {
+    if (it.nameEn.trim().isNotEmpty) {
+      final c = _clean(it.nameEn);
+      if (c.isNotEmpty) return c;
+    }
+    if (it.nameRo.trim().isNotEmpty) {
+      final c = _clean(it.nameRo);
+      if (c.isNotEmpty) return c;
+    }
+    return 'Paint Product (${it.code.isNotEmpty ? it.code : "#${it.prodId}"})';
+  }
+
+  static String _safeCustomerName(String raw) {
+    final c = _clean(raw);
+    if (c.isNotEmpty) return c;
+    return 'Walk-in Cash Customer';
+  }
+
   static String _formatPdfMoney(num amount) {
     final int rounded = amount.round();
     final String formatted = rounded.toString().replaceAllMapped(
@@ -54,7 +86,7 @@ class InvoicePdfService {
   }
 
   // ===========================================================================
-  // 1. A4 TAX INVOICE GENERATOR
+  // 1. A4 TAX INVOICE GENERATOR (MultiPage with zero-overflow safety)
   // ===========================================================================
   static Future<Uint8List> _generateA4Pdf(
     ErpController ctrl,
@@ -63,12 +95,20 @@ class InvoicePdfService {
   ) async {
     final doc = pw.Document();
 
-    // Try to load shop logo
+    // Safe shop logo load
     pw.MemoryImage? logoImage;
     try {
       final logoBytes = await rootBundle.load('assets/images/logo.jpeg');
-      logoImage = pw.MemoryImage(logoBytes.buffer.asUint8List());
-    } catch (_) {}
+      final bytes = logoBytes.buffer.asUint8List(
+        logoBytes.offsetInBytes,
+        logoBytes.lengthInBytes,
+      );
+      if (bytes.isNotEmpty) {
+        logoImage = pw.MemoryImage(bytes);
+      }
+    } catch (_) {
+      logoImage = null;
+    }
 
     final primaryColor = PdfColor.fromHex('#1E3A8A'); // Deep Navy
     final secondaryColor = PdfColor.fromHex('#059669'); // Emerald Green
@@ -76,418 +116,411 @@ class InvoicePdfService {
     final borderColor = PdfColor.fromHex('#CBD5E1');
 
     final totalQty = inv.items.fold<int>(0, (s, i) => s + i.qty);
+    final safeCustName = _safeCustomerName(inv.customerName);
+    final safeCustPhone = _clean(inv.customerPhone);
+    final safeInvNo = _clean(inv.invoiceNo);
+    final safeDate = _clean(inv.dateStr);
+    final safePhone = _clean(ctrl.shopPhone);
 
     doc.addPage(
-      pw.Page(
+      pw.MultiPage(
         pageFormat: pageFormat,
-        margin: const pw.EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+        margin: const pw.EdgeInsets.symmetric(horizontal: 24, vertical: 20),
         build: (pw.Context context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-            children: [
-              // 1. Header with Logo & Shop Info
-              pw.Container(
-                padding: const pw.EdgeInsets.only(bottom: 12),
-                decoration: pw.BoxDecoration(
-                  border: pw.Border(
-                    bottom: pw.BorderSide(color: primaryColor, width: 2),
-                  ),
-                ),
-                child: pw.Row(
-                  crossAxisAlignment: pw.CrossAxisAlignment.center,
-                  children: [
-                    if (logoImage != null)
-                      pw.Container(
-                        width: 55,
-                        height: 55,
-                        margin: const pw.EdgeInsets.only(right: 12),
-                        child: pw.Image(logoImage),
-                      ),
-                    pw.Expanded(
-                      child: pw.Column(
-                        crossAxisAlignment: pw.CrossAxisAlignment.start,
-                        children: [
-                          pw.Text(
-                            'BABUR & BROTHERS HARDWARE & PAINT STORE',
-                            style: pw.TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: pw.FontWeight.bold,
-                              color: primaryColor,
-                            ),
-                          ),
-                          pw.SizedBox(height: 2),
-                          pw.Text(
-                            "Official Authorized Dealer: Gobi's Paints Pakistan",
-                            style: pw.TextStyle(
-                              fontSize: 9.5,
-                              color: PdfColors.grey700,
-                              fontWeight: pw.FontWeight.bold,
-                            ),
-                          ),
-                          pw.Text(
-                            'Bhera Road, Nawaz Plaza, Malikwal (Ph: ${ctrl.shopPhone})',
-                            style: const pw.TextStyle(
-                              fontSize: 8.5,
-                              color: PdfColors.grey600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    pw.Container(
-                      padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: pw.BoxDecoration(
-                        color: inv.mode == 'Cash'
-                            ? secondaryColor
-                            : PdfColor.fromHex('#F59E0B'),
-                        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
-                      ),
-                      child: pw.Column(
-                        children: [
-                          pw.Text(
-                            'TAX INVOICE',
-                            style: pw.TextStyle(
-                              fontSize: 10,
-                              fontWeight: pw.FontWeight.bold,
-                              color: PdfColors.white,
-                            ),
-                          ),
-                          pw.Text(
-                            inv.mode.toUpperCase(),
-                            style: pw.TextStyle(
-                              fontSize: 8,
-                              fontWeight: pw.FontWeight.bold,
-                              color: PdfColors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+          return [
+            // 1. Header with Logo & Shop Info
+            pw.Container(
+              padding: const pw.EdgeInsets.only(bottom: 10),
+              decoration: pw.BoxDecoration(
+                border: pw.Border(
+                  bottom: pw.BorderSide(color: primaryColor, width: 2),
                 ),
               ),
-              pw.SizedBox(height: 10),
-
-              // 2. Bill Meta Information (Invoice No, Customer, Date)
-              pw.Container(
-                padding: const pw.EdgeInsets.all(10),
-                decoration: pw.BoxDecoration(
-                  color: lightBg,
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
-                  border: pw.Border.all(color: borderColor),
-                ),
-                child: pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Column(
+              child: pw.Row(
+                crossAxisAlignment: pw.CrossAxisAlignment.center,
+                children: [
+                  if (logoImage != null)
+                    pw.Container(
+                      width: 50,
+                      height: 50,
+                      margin: const pw.EdgeInsets.only(right: 12),
+                      child: pw.Image(logoImage),
+                    ),
+                  pw.Expanded(
+                    child: pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
-                        pw.RichText(
-                          text: pw.TextSpan(
-                            children: [
-                              pw.TextSpan(
-                                text: 'Invoice No: ',
-                                style: pw.TextStyle(
-                                  fontSize: 9.5,
-                                  fontWeight: pw.FontWeight.bold,
-                                  color: primaryColor,
-                                ),
-                              ),
-                              pw.TextSpan(
-                                text: inv.invoiceNo,
-                                style: pw.TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: pw.FontWeight.bold,
-                                ),
-                              ),
-                            ],
+                        pw.Text(
+                          'BABUR & BROTHERS HARDWARE & PAINT STORE',
+                          style: pw.TextStyle(
+                            fontSize: 13,
+                            fontWeight: pw.FontWeight.bold,
+                            color: primaryColor,
                           ),
                         ),
+                        pw.SizedBox(height: 2),
+                        pw.Text(
+                          "Official Authorized Dealer: Gobi's Paints Pakistan",
+                          style: pw.TextStyle(
+                            fontSize: 9,
+                            color: PdfColors.grey700,
+                            fontWeight: pw.FontWeight.bold,
+                          ),
+                        ),
+                        pw.Text(
+                          'Bhera Road, Nawaz Plaza, Malikwal (Ph: $safePhone)',
+                          style: const pw.TextStyle(
+                            fontSize: 8.5,
+                            color: PdfColors.grey600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  pw.Container(
+                    padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: pw.BoxDecoration(
+                      color: inv.mode == 'Cash' ? secondaryColor : PdfColor.fromHex('#F59E0B'),
+                      borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                    ),
+                    child: pw.Column(
+                      children: [
+                        pw.Text(
+                          'TAX INVOICE',
+                          style: pw.TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.white,
+                          ),
+                        ),
+                        pw.Text(
+                          inv.mode.toUpperCase(),
+                          style: pw.TextStyle(
+                            fontSize: 8,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            pw.SizedBox(height: 10),
+
+            // 2. Bill Meta Information (Invoice No, Customer, Date)
+            pw.Container(
+              padding: const pw.EdgeInsets.all(8),
+              decoration: pw.BoxDecoration(
+                color: lightBg,
+                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                border: pw.Border.all(color: borderColor),
+              ),
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.RichText(
+                        text: pw.TextSpan(
+                          children: [
+                            pw.TextSpan(
+                              text: 'Invoice No: ',
+                              style: pw.TextStyle(
+                                fontSize: 9.5,
+                                fontWeight: pw.FontWeight.bold,
+                                color: primaryColor,
+                              ),
+                            ),
+                            pw.TextSpan(
+                              text: safeInvNo,
+                              style: pw.TextStyle(
+                                fontSize: 9.5,
+                                fontWeight: pw.FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      pw.SizedBox(height: 2),
+                      pw.RichText(
+                        text: pw.TextSpan(
+                          children: [
+                            const pw.TextSpan(
+                              text: 'Date & Time: ',
+                              style: pw.TextStyle(
+                                fontSize: 8.5,
+                                color: PdfColors.grey700,
+                              ),
+                            ),
+                            pw.TextSpan(
+                              text: safeDate,
+                              style: const pw.TextStyle(fontSize: 8.5),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    children: [
+                      pw.RichText(
+                        text: pw.TextSpan(
+                          children: [
+                            pw.TextSpan(
+                              text: 'Customer: ',
+                              style: pw.TextStyle(
+                                fontSize: 9.5,
+                                fontWeight: pw.FontWeight.bold,
+                                color: primaryColor,
+                              ),
+                            ),
+                            pw.TextSpan(
+                              text: safeCustName,
+                              style: pw.TextStyle(
+                                fontSize: 9.5,
+                                fontWeight: pw.FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (safeCustPhone.isNotEmpty && safeCustPhone != '0300-0000000') ...[
                         pw.SizedBox(height: 2),
                         pw.RichText(
                           text: pw.TextSpan(
                             children: [
                               const pw.TextSpan(
-                                text: 'Date & Time: ',
+                                text: 'Phone: ',
                                 style: pw.TextStyle(
-                                  fontSize: 9,
+                                  fontSize: 8.5,
                                   color: PdfColors.grey700,
                                 ),
                               ),
                               pw.TextSpan(
-                                text: inv.dateStr,
-                                style: const pw.TextStyle(fontSize: 9),
+                                text: safeCustPhone,
+                                style: const pw.TextStyle(fontSize: 8.5),
                               ),
                             ],
                           ),
                         ),
                       ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            pw.SizedBox(height: 10),
+
+            // 3. Products Table
+            pw.Table(
+              border: pw.TableBorder.all(
+                color: borderColor,
+                width: 0.5,
+              ),
+              columnWidths: {
+                0: const pw.FixedColumnWidth(24), // #
+                1: const pw.FlexColumnWidth(5), // Description
+                2: const pw.FlexColumnWidth(2), // Code
+                3: const pw.FixedColumnWidth(36), // Qty
+                4: const pw.FlexColumnWidth(2.2), // Rate
+                5: const pw.FlexColumnWidth(2.5), // Amount
+              },
+              children: [
+                // Table Header
+                pw.TableRow(
+                  decoration: pw.BoxDecoration(color: primaryColor),
+                  children: [
+                    _headerCell('#', align: pw.TextAlign.center),
+                    _headerCell('ITEM DESCRIPTION & PACK SIZE'),
+                    _headerCell('CODE', align: pw.TextAlign.center),
+                    _headerCell('QTY', align: pw.TextAlign.center),
+                    _headerCell('RATE (PKR)', align: pw.TextAlign.right),
+                    _headerCell('AMOUNT (PKR)', align: pw.TextAlign.right),
+                  ],
+                ),
+                // Table Body
+                ...inv.items.asMap().entries.map((entry) {
+                  final idx = entry.key;
+                  final it = entry.value;
+                  final isEven = idx % 2 == 0;
+                  final itemName = _safeItemName(it);
+                  final itemCode = _clean(it.code);
+                  return pw.TableRow(
+                    decoration: pw.BoxDecoration(
+                      color: isEven ? PdfColors.white : lightBg,
                     ),
-                    pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    children: [
+                      _cell('${idx + 1}', align: pw.TextAlign.center),
+                      _cell(itemName, isBold: true),
+                      _cell(itemCode.isNotEmpty ? itemCode : '-', align: pw.TextAlign.center),
+                      _cell('${it.qty}', align: pw.TextAlign.center),
+                      _cell(_formatPdfMoney(it.price), align: pw.TextAlign.right),
+                      _cell(_formatPdfMoney(it.subtotal), align: pw.TextAlign.right, isBold: true),
+                    ],
+                  );
+                }),
+              ],
+            ),
+            pw.SizedBox(height: 10),
+
+            // 4. Summary & Totals
+            pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                // Terms and Notes
+                pw.Expanded(
+                  flex: 6,
+                  child: pw.Container(
+                    padding: const pw.EdgeInsets.all(8),
+                    decoration: pw.BoxDecoration(
+                      border: pw.Border.all(color: borderColor),
+                      borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                    ),
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
-                        pw.RichText(
-                          text: pw.TextSpan(
-                            children: [
-                              pw.TextSpan(
-                                text: 'Customer: ',
-                                style: pw.TextStyle(
-                                  fontSize: 9.5,
-                                  fontWeight: pw.FontWeight.bold,
-                                  color: primaryColor,
-                                ),
-                              ),
-                              pw.TextSpan(
-                                text: inv.customerName.isEmpty
-                                    ? 'Walk-in Cash Customer'
-                                    : inv.customerName,
-                                style: pw.TextStyle(
-                                  fontSize: 9.5,
-                                  fontWeight: pw.FontWeight.bold,
-                                ),
-                              ),
-                            ],
+                        pw.Text(
+                          'TERMS & CONDITIONS:',
+                          style: pw.TextStyle(
+                            fontSize: 7.5,
+                            fontWeight: pw.FontWeight.bold,
+                            color: primaryColor,
                           ),
                         ),
                         pw.SizedBox(height: 2),
-                        if (inv.customerPhone.isNotEmpty &&
-                            inv.customerPhone != '0300-0000000')
-                          pw.RichText(
-                            text: pw.TextSpan(
-                              children: [
-                                const pw.TextSpan(
-                                  text: 'Phone: ',
-                                  style: pw.TextStyle(
-                                    fontSize: 9,
-                                    color: PdfColors.grey700,
-                                  ),
-                                ),
-                                pw.TextSpan(
-                                  text: inv.customerPhone,
-                                  style: const pw.TextStyle(fontSize: 9),
-                                ),
-                              ],
-                            ),
+                        pw.Text(
+                          '1. Goods once sold will not be returned without original receipt.\n'
+                          '2. Computer tinting & custom mixed colors are strictly non-refundable.\n'
+                          '3. Please inspect all cans for seal integrity prior to application.',
+                          style: const pw.TextStyle(
+                            fontSize: 7,
+                            color: PdfColors.grey700,
+                            lineSpacing: 1.5,
                           ),
+                        ),
+                        pw.SizedBox(height: 4),
+                        pw.Text(
+                          'Total Items: ${inv.items.length}  |  Total Cans / Units: $totalQty',
+                          style: pw.TextStyle(
+                            fontSize: 8,
+                            fontWeight: pw.FontWeight.bold,
+                            color: secondaryColor,
+                          ),
+                        ),
                       ],
                     ),
-                  ],
-                ),
-              ),
-              pw.SizedBox(height: 10),
-
-              // 3. Products Table
-              pw.Table(
-                border: pw.TableBorder.all(
-                  color: borderColor,
-                  width: 0.5,
-                ),
-                columnWidths: {
-                  0: const pw.FixedColumnWidth(24), // #
-                  1: const pw.FlexColumnWidth(5), // Description
-                  2: const pw.FlexColumnWidth(2), // Code
-                  3: const pw.FixedColumnWidth(36), // Qty
-                  4: const pw.FlexColumnWidth(2.2), // Rate
-                  5: const pw.FlexColumnWidth(2.5), // Amount
-                },
-                children: [
-                  // Table Header
-                  pw.TableRow(
-                    decoration: pw.BoxDecoration(color: primaryColor),
-                    children: [
-                      _headerCell('#', align: pw.TextAlign.center),
-                      _headerCell('ITEM DESCRIPTION & PACK SIZE'),
-                      _headerCell('CODE', align: pw.TextAlign.center),
-                      _headerCell('QTY', align: pw.TextAlign.center),
-                      _headerCell('RATE (PKR)', align: pw.TextAlign.right),
-                      _headerCell('AMOUNT (PKR)', align: pw.TextAlign.right),
-                    ],
                   ),
-                  // Table Body
-                  ...inv.items.asMap().entries.map((entry) {
-                    final idx = entry.key;
-                    final it = entry.value;
-                    final isEven = idx % 2 == 0;
-                    final itemName = it.nameEn.isNotEmpty
-                        ? it.nameEn
-                        : (it.nameRo.isNotEmpty ? it.nameRo : it.nameUr);
-                    return pw.TableRow(
-                      decoration: pw.BoxDecoration(
-                        color: isEven ? PdfColors.white : lightBg,
-                      ),
+                ),
+                pw.SizedBox(width: 14),
+
+                // Financial Totals
+                pw.Expanded(
+                  flex: 4,
+                  child: pw.Container(
+                    padding: const pw.EdgeInsets.all(8),
+                    decoration: pw.BoxDecoration(
+                      color: lightBg,
+                      border: pw.Border.all(color: borderColor),
+                      borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                    ),
+                    child: pw.Column(
                       children: [
-                        _cell('${idx + 1}', align: pw.TextAlign.center),
-                        _cell(itemName, isBold: true),
-                        _cell(it.code.isNotEmpty ? it.code : '-',
-                            align: pw.TextAlign.center),
-                        _cell('${it.qty}', align: pw.TextAlign.center),
-                        _cell(_formatPdfMoney(it.price),
-                            align: pw.TextAlign.right),
-                        _cell(_formatPdfMoney(it.subtotal),
-                            align: pw.TextAlign.right, isBold: true),
-                      ],
-                    );
-                  }),
-                ],
-              ),
-              pw.SizedBox(height: 10),
-
-              // 4. Summary & Totals
-              pw.Row(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  // Terms and Notes
-                  pw.Expanded(
-                    flex: 6,
-                    child: pw.Container(
-                      padding: const pw.EdgeInsets.all(8),
-                      decoration: pw.BoxDecoration(
-                        border: pw.Border.all(color: borderColor),
-                        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
-                      ),
-                      child: pw.Column(
-                        crossAxisAlignment: pw.CrossAxisAlignment.start,
-                        children: [
-                          pw.Text(
-                            'TERMS & CONDITIONS:',
-                            style: pw.TextStyle(
-                              fontSize: 7.5,
-                              fontWeight: pw.FontWeight.bold,
-                              color: primaryColor,
-                            ),
-                          ),
-                          pw.SizedBox(height: 2),
-                          pw.Text(
-                            '1. Goods once sold will not be returned without original receipt.\n'
-                            '2. Computer tinting & custom mixed colors are strictly non-refundable.\n'
-                            '3. Please inspect all cans for seal integrity prior to application.',
-                            style: const pw.TextStyle(
-                              fontSize: 7,
-                              color: PdfColors.grey700,
-                              lineSpacing: 1.5,
-                            ),
-                          ),
-                          pw.SizedBox(height: 4),
-                          pw.Text(
-                            'Total Items: ${inv.items.length}  |  Total Cans / Units: $totalQty',
-                            style: pw.TextStyle(
-                              fontSize: 8,
-                              fontWeight: pw.FontWeight.bold,
-                              color: secondaryColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  pw.SizedBox(width: 14),
-
-                  // Financial Totals
-                  pw.Expanded(
-                    flex: 4,
-                    child: pw.Container(
-                      padding: const pw.EdgeInsets.all(8),
-                      decoration: pw.BoxDecoration(
-                        color: lightBg,
-                        border: pw.Border.all(color: borderColor),
-                        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
-                      ),
-                      child: pw.Column(
-                        children: [
+                        pw.Row(
+                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                          children: [
+                            pw.Text('Subtotal:', style: const pw.TextStyle(fontSize: 8.5)),
+                            pw.Text(_formatPdfMoney(inv.subtotal),
+                                style: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold)),
+                          ],
+                        ),
+                        if (inv.discount > 0) ...[
+                          pw.SizedBox(height: 3),
                           pw.Row(
                             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                             children: [
-                              pw.Text('Subtotal:', style: const pw.TextStyle(fontSize: 8.5)),
-                              pw.Text(_formatPdfMoney(inv.subtotal),
-                                  style: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold)),
+                              pw.Text('Discount:',
+                                  style: const pw.TextStyle(fontSize: 8.5, color: PdfColors.redAccent)),
+                              pw.Text('-${_formatPdfMoney(inv.discount)}',
+                                  style: pw.TextStyle(
+                                      fontSize: 8.5,
+                                      fontWeight: pw.FontWeight.bold,
+                                      color: PdfColors.redAccent)),
                             ],
                           ),
-                          if (inv.discount > 0) ...[
-                            pw.SizedBox(height: 3),
-                            pw.Row(
-                              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                              children: [
-                                pw.Text('Discount:',
-                                    style: const pw.TextStyle(fontSize: 8.5, color: PdfColors.redAccent)),
-                                pw.Text('-${_formatPdfMoney(inv.discount)}',
-                                    style: pw.TextStyle(
-                                        fontSize: 8.5,
-                                        fontWeight: pw.FontWeight.bold,
-                                        color: PdfColors.redAccent)),
-                              ],
+                        ],
+                        pw.Divider(color: borderColor, height: 8),
+                        pw.Row(
+                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                          children: [
+                            pw.Text(
+                              'Grand Total:',
+                              style: pw.TextStyle(
+                                fontSize: 10,
+                                fontWeight: pw.FontWeight.bold,
+                                color: primaryColor,
+                              ),
+                            ),
+                            pw.Text(
+                              _formatPdfMoney(inv.total),
+                              style: pw.TextStyle(
+                                fontSize: 11,
+                                fontWeight: pw.FontWeight.bold,
+                                color: primaryColor,
+                              ),
                             ),
                           ],
-                          pw.Divider(color: borderColor, height: 8),
-                          pw.Row(
-                            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                            children: [
-                              pw.Text(
-                                'Grand Total:',
-                                style: pw.TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: pw.FontWeight.bold,
-                                  color: primaryColor,
-                                ),
-                              ),
-                              pw.Text(
-                                _formatPdfMoney(inv.total),
-                                style: pw.TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: pw.FontWeight.bold,
-                                  color: primaryColor,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              pw.SizedBox(height: 14),
-
-              // 5. Footer & Signatures
-              pw.Container(
-                padding: const pw.EdgeInsets.only(top: 8),
-                decoration: pw.BoxDecoration(
-                  border: pw.Border(
-                    top: pw.BorderSide(color: borderColor, width: 0.5),
-                  ),
-                ),
-                child: pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text(
-                      'Thank you for your business! Powered by Babur Brothers ERP',
-                      style: const pw.TextStyle(
-                        fontSize: 7.5,
-                        color: PdfColors.grey600,
-                      ),
-                    ),
-                    pw.Column(
-                      children: [
-                        pw.Container(
-                          width: 120,
-                          decoration: const pw.BoxDecoration(
-                            border: pw.Border(
-                              bottom: pw.BorderSide(color: PdfColors.black, width: 0.8),
-                            ),
-                          ),
-                        ),
-                        pw.SizedBox(height: 3),
-                        pw.Text(
-                          'Authorized Signature / Stamp',
-                          style: const pw.TextStyle(fontSize: 7.5, color: PdfColors.grey700),
                         ),
                       ],
                     ),
-                  ],
+                  ),
+                ),
+              ],
+            ),
+            pw.SizedBox(height: 14),
+
+            // 5. Footer & Signatures
+            pw.Container(
+              padding: const pw.EdgeInsets.only(top: 8),
+              decoration: pw.BoxDecoration(
+                border: pw.Border(
+                  top: pw.BorderSide(color: borderColor, width: 0.5),
                 ),
               ),
-            ],
-          );
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text(
+                    'Thank you for your business! Powered by Babur Brothers ERP',
+                    style: const pw.TextStyle(
+                      fontSize: 7.5,
+                      color: PdfColors.grey600,
+                    ),
+                  ),
+                  pw.Column(
+                    children: [
+                      pw.Container(
+                        width: 120,
+                        decoration: const pw.BoxDecoration(
+                          border: pw.Border(
+                            bottom: pw.BorderSide(color: PdfColors.black, width: 0.8),
+                          ),
+                        ),
+                      ),
+                      pw.SizedBox(height: 3),
+                      pw.Text(
+                        'Authorized Signature / Stamp',
+                        style: const pw.TextStyle(fontSize: 7.5, color: PdfColors.grey700),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ];
         },
       ),
     );
@@ -505,19 +538,25 @@ class InvoicePdfService {
   ) async {
     final doc = pw.Document();
 
+    final safeCustName = _safeCustomerName(inv.customerName);
+    final safeInvNo = _clean(inv.invoiceNo);
+    final safeDate = _clean(inv.dateStr);
+    final safeMode = _clean(inv.mode);
+    final safePhone = _clean(ctrl.shopPhone);
+
     final safeHeight = (pageFormat.height.isFinite && pageFormat.height > 100)
         ? pageFormat.height
-        : (200.0 + (inv.items.length * 36.0) + 140.0);
+        : (220.0 + (inv.items.length * 38.0) + 160.0);
     final finiteFormat = PdfPageFormat(
-      pageFormat.width,
+      pageFormat.width < 100 ? (80 * PdfPageFormat.mm) : pageFormat.width,
       safeHeight,
-      marginAll: 6 * PdfPageFormat.mm,
+      marginAll: 4 * PdfPageFormat.mm,
     );
 
     doc.addPage(
       pw.Page(
         pageFormat: finiteFormat,
-        margin: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        margin: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 6),
         build: (pw.Context context) {
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.stretch,
@@ -549,7 +588,7 @@ class InvoicePdfService {
               ),
               pw.Center(
                 child: pw.Text(
-                  'Tel: ${ctrl.shopPhone}',
+                  'Tel: $safePhone',
                   style: const pw.TextStyle(fontSize: 7),
                 ),
               ),
@@ -559,24 +598,19 @@ class InvoicePdfService {
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('Inv: ${inv.invoiceNo}',
+                  pw.Text('Inv: $safeInvNo',
                       style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold)),
-                  pw.Text('Mode: ${inv.mode}',
+                  pw.Text('Mode: $safeMode',
                       style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold)),
                 ],
               ),
-              pw.Text('Date: ${inv.dateStr}', style: const pw.TextStyle(fontSize: 7)),
-              pw.Text(
-                'Cust: ${inv.customerName.isEmpty ? "Walk-in" : inv.customerName}',
-                style: const pw.TextStyle(fontSize: 7),
-              ),
+              pw.Text('Date: $safeDate', style: const pw.TextStyle(fontSize: 7)),
+              pw.Text('Cust: $safeCustName', style: const pw.TextStyle(fontSize: 7)),
               pw.Divider(height: 8, thickness: 0.5),
 
               // Items
               ...inv.items.map((it) {
-                final name = it.nameEn.isNotEmpty
-                    ? it.nameEn
-                    : (it.nameRo.isNotEmpty ? it.nameRo : it.nameUr);
+                final name = _safeItemName(it);
                 return pw.Padding(
                   padding: const pw.EdgeInsets.symmetric(vertical: 2),
                   child: pw.Column(
@@ -682,7 +716,7 @@ class InvoicePdfService {
     );
   }
 
-  /// Shares the invoice as a genuine PDF file via WhatsApp, Email, or System Share
+  /// Shares the invoice as a genuine PDF document file (WhatsApp, Drive, Gmail, etc.)
   static Future<void> shareInvoicePdf(
     BuildContext context,
     ErpController ctrl,
@@ -699,45 +733,27 @@ class InvoicePdfService {
       await Printing.sharePdf(
         bytes: pdfBytes,
         filename: 'Invoice_${safeInvNo}_Babur_Brothers.pdf',
+        subject: 'Invoice ${inv.invoiceNo} - Babur & Brothers Paint Store',
       );
     } catch (e) {
-      // Fallback: If native PDF sharing fails or plugin missing, share via WhatsApp text intent
-      try {
-        final text = [
-          '*BABUR & BROTHERS HARDWARE & PAINT*',
-          'Invoice: ${inv.invoiceNo} (${inv.dateStr})',
-          'Customer: ${inv.customerName}',
-          '--------------------------------',
-          ...inv.items.map((it) => '${it.getName(ctrl.currentLang)} x${it.qty} = ${ctrl.formatMoney(it.subtotal)}'),
-          '--------------------------------',
-          'Total: ${ctrl.formatMoney(inv.total)}',
-          'Thank you for shopping with us!',
-        ].join('\n');
-        await Clipboard.setData(ClipboardData(text: text));
-        final encoded = Uri.encodeComponent(text);
-        final uri = Uri.parse('whatsapp://send?text=$encoded');
-        if (await canLaunchUrl(uri)) {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-        } else {
-          final webUri = Uri.parse('https://api.whatsapp.com/send?text=$encoded');
-          await launchUrl(webUri, mode: LaunchMode.externalApplication);
-        }
-      } catch (_) {
-        ctrl.showToast(ctrl.currentLang == 'ur'
-            ? 'شیئرنگ میں خرابی: $e'
-            : 'Share failed: $e');
-      }
+      ctrl.showToast(ctrl.currentLang == 'ur'
+          ? 'پی ڈی ایف شیئرنگ میں خرابی: $e'
+          : 'Failed to share PDF: $e');
     }
   }
 
-  /// Opens the Print & Save PDF Preview dialog
+  /// Directly opens the native system Print / Save as PDF manager
   static Future<void> printInvoice(
     BuildContext context,
     ErpController ctrl,
     InvoiceRecord inv,
   ) async {
+    final safeInvNo = inv.invoiceNo.replaceAll(RegExp(r'[^a-zA-Z0-9_\-]'), '_');
     try {
-      final safeInvNo = inv.invoiceNo.replaceAll(RegExp(r'[^a-zA-Z0-9_\-]'), '_');
+      ctrl.showToast(ctrl.currentLang == 'ur'
+          ? 'پرنٹر لوڈ ہو رہا ہے...'
+          : 'Loading Printer...');
+
       await Printing.layoutPdf(
         name: 'Invoice_${safeInvNo}_Babur_Brothers.pdf',
         onLayout: (PdfPageFormat format) async =>

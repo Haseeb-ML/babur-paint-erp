@@ -3537,7 +3537,7 @@ class ErpModals {
                       ),
                       const SizedBox(width: 6),
 
-                      // 2. Print / Save PDF Preview Button
+                      // 2. Direct Print Button (Native System Print Dialog)
                       Expanded(
                         child: OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(
@@ -3545,13 +3545,13 @@ class ErpModals {
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
                           onPressed: () {
-                            InvoicePdfService.openInvoicePdfPreview(context, ctrl, inv);
+                            InvoicePdfService.printInvoice(context, ctrl, inv);
                           },
                           icon: const Icon(Icons.print_rounded, size: 15),
                           label: FittedBox(
                             fit: BoxFit.scaleDown,
                             child: Text(
-                              ctrl.currentLang == 'ur' ? 'پرنٹ / PDF' : 'Print / PDF',
+                              ctrl.currentLang == 'ur' ? 'پرنٹ' : 'Print',
                               style: _txt(ctrl, size: 11, weight: FontWeight.w600),
                             ),
                           ),

@@ -16,9 +16,13 @@ class CloudSync {
   static Future<void> init() async {
     try {
       await Firebase.initializeApp(
-          options: DefaultFirebaseOptions.currentPlatform);
+        options: DefaultFirebaseOptions.currentPlatform,
+      ).timeout(const Duration(seconds: 10));
+
       if (FirebaseAuth.instance.currentUser == null) {
-        await FirebaseAuth.instance.signInAnonymously();
+        await FirebaseAuth.instance
+            .signInAnonymously()
+            .timeout(const Duration(seconds: 10));
       }
       ready = true;
     } catch (_) {
