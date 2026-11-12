@@ -4005,4 +4005,191 @@ class ErpModals {
       ),
     );
   }
+
+  // ===========================================================================
+  // 20. CHANGE PASSWORD DIALOG
+  // ===========================================================================
+  static void openChangePasswordDialog(
+    BuildContext context,
+    ErpController ctrl, {
+    String initialUsername = '',
+    void Function(String newPassword)? onSuccess,
+  }) {
+    final userCtrl = TextEditingController(
+      text: initialUsername.isNotEmpty
+          ? initialUsername
+          : (ctrl.currentUser?.username ?? 'admin'),
+    );
+    final oldPassCtrl = TextEditingController();
+    final newPassCtrl = TextEditingController();
+    final confirmPassCtrl = TextEditingController();
+    bool obscureOld = true;
+    bool obscureNew = true;
+    bool obscureConfirm = true;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final isDark = ctrl.isDarkMode;
+          final isUrdu = ctrl.currentLang == 'ur';
+          final cardBg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
+          final borderCol = isDark ? Colors.white24 : Colors.grey.shade300;
+
+          Widget buildField({
+            required TextEditingController controller,
+            required String label,
+            required IconData icon,
+            bool isPassword = false,
+            bool obscure = false,
+            VoidCallback? onToggleObscure,
+          }) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: _txt(ctrl, size: 11, weight: FontWeight.w600),
+                ),
+                const SizedBox(height: 5),
+                TextField(
+                  controller: controller,
+                  obscureText: isPassword && obscure,
+                  style: TextStyle(fontSize: 12.5, color: isDark ? Colors.white : Colors.black87),
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: cardBg,
+                    prefixIcon: Icon(icon, size: 18, color: ctrl.palette.primary),
+                    suffixIcon: isPassword
+                        ? IconButton(
+                            icon: Icon(
+                              obscure ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                              size: 18,
+                              color: Colors.grey,
+                            ),
+                            onPressed: onToggleObscure,
+                          )
+                        : null,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: borderCol),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: borderCol),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }
+
+          return Directionality(
+            textDirection: ctrl.isRtl ? TextDirection.rtl : TextDirection.ltr,
+            child: AlertDialog(
+              backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+              title: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      color: ctrl.palette.primary.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.lock_reset_rounded, size: 22, color: ctrl.palette.primary),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      isUrdu ? 'پاس ورڈ تبدیل کریں' : 'Change Password',
+                      style: _txt(ctrl, size: 14, weight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+              content: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 380),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      buildField(
+                        controller: userCtrl,
+                        label: isUrdu ? 'یوزر نیم (Username)' : 'Username',
+                        icon: Icons.person_outline_rounded,
+                      ),
+                      const SizedBox(height: 10),
+                      buildField(
+                        controller: oldPassCtrl,
+                        label: isUrdu ? 'موجودہ پاس ورڈ (Current Password)' : 'Current Password',
+                        icon: Icons.lock_outline_rounded,
+                        isPassword: true,
+                        obscure: obscureOld,
+                        onToggleObscure: () => setDialogState(() => obscureOld = !obscureOld),
+                      ),
+                      const SizedBox(height: 10),
+                      buildField(
+                        controller: newPassCtrl,
+                        label: isUrdu ? 'نیا پاس ورڈ (New Password)' : 'New Password',
+                        icon: Icons.key_rounded,
+                        isPassword: true,
+                        obscure: obscureNew,
+                        onToggleObscure: () => setDialogState(() => obscureNew = !obscureNew),
+                      ),
+                      const SizedBox(height: 10),
+                      buildField(
+                        controller: confirmPassCtrl,
+                        label: isUrdu ? 'نئے پاس ورڈ کی تصدیق (Confirm)' : 'Confirm New Password',
+                        icon: Icons.check_circle_outline_rounded,
+                        isPassword: true,
+                        obscure: obscureConfirm,
+                        onToggleObscure: () => setDialogState(() => obscureConfirm = !obscureConfirm),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text(isUrdu ? 'منسوخ (Cancel)' : 'Cancel', style: _txt(ctrl, size: 12)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: ctrl.palette.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: () async {
+                    if (newPassCtrl.text.trim() != confirmPassCtrl.text.trim()) {
+                      ctrl.showToast(isUrdu
+                          ? 'نیا پاس ورڈ اور تصدیقی پاس ورڈ ایک جیسے نہیں ہیں!'
+                          : 'New passwords do not match!');
+                      return;
+                    }
+                    final ok = await ctrl.changePassword(
+                      username: userCtrl.text.trim(),
+                      currentPassword: oldPassCtrl.text.trim(),
+                      newPassword: newPassCtrl.text.trim(),
+                    );
+                    if (ok && ctx.mounted) {
+                      onSuccess?.call(newPassCtrl.text.trim());
+                      Navigator.pop(ctx);
+                    }
+                  },
+                  child: Text(
+                    isUrdu ? 'پاس ورڈ اپ ڈیٹ کریں' : 'Update Password',
+                    style: _txt(ctrl, size: 12, weight: FontWeight.bold, color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
 }

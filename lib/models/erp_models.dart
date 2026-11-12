@@ -792,7 +792,7 @@ class ErpUser {
   final String id;
   final String name;
   final String username;
-  final String password;
+  String password;
   final String role; // 'Owner / Admin', 'Manager', 'Cashier'
   final String phone;
   final String shopName;

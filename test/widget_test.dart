@@ -105,6 +105,26 @@ void main() {
     await ctrl.logout();
     expect(ctrl.isAuthenticated, false);
     expect(ctrl.currentUser, null);
+
+    // 5. Test Change Password for registered user
+    final changeOk = await ctrl.changePassword(
+      username: 'asad',
+      currentPassword: '321',
+      newPassword: '999',
+    );
+    expect(changeOk, true);
+
+    // 6. Verify old password fails
+    final oldLoginOk = await ctrl.login('asad', '321');
+    expect(oldLoginOk, false);
+
+    // 7. Verify new password succeeds
+    final newLoginOk = await ctrl.login('asad', '999');
+    expect(newLoginOk, true);
+    expect(ctrl.isAuthenticated, true);
+    expect(ctrl.currentUser?.name, 'Asad Painter');
+
+    await ctrl.logout();
     await tester.pump(const Duration(seconds: 3));
   });
 

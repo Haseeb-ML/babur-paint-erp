@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../state/erp_controller.dart';
+import '../modals/erp_modals.dart';
 
 class AuthScreen extends StatefulWidget {
   final ErpController controller;
@@ -320,37 +321,29 @@ class _AuthScreenState extends State<AuthScreen> {
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 16),
-                            const Divider(height: 1),
-                            const SizedBox(height: 12),
-
-                            // Quick Demo Logins
-                            Text(
-                              isUrdu
-                                  ? 'آسانی کے لیے 1-کلک فوری لاگ ان:'
-                                  : 'Quick 1-Click Fast Access:',
-                              style: _txt(ctrl, size: 11, color: Colors.grey),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 8),
-                            OutlinedButton.icon(
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 10),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
+                            const SizedBox(height: 14),
+                            Center(
+                              child: TextButton.icon(
+                                onPressed: () {
+                                  ErpModals.openChangePasswordDialog(
+                                    context,
+                                    ctrl,
+                                    initialUsername: _loginUsernameCtrl.text.trim(),
+                                    onSuccess: (newPass) {
+                                      _loginPasswordCtrl.text = newPass;
+                                    },
+                                  );
+                                },
+                                icon: const Icon(Icons.lock_reset_rounded, size: 18),
+                                label: Text(
+                                  isUrdu ? 'پاس ورڈ تبدیل کریں (Change Password)' : 'Change Password',
+                                  style: _txt(
+                                    ctrl,
+                                    size: 12,
+                                    weight: FontWeight.w600,
+                                    color: ctrl.palette.primary,
+                                  ),
                                 ),
-                              ),
-                              onPressed: () {
-                                _loginUsernameCtrl.text = 'admin';
-                                _loginPasswordCtrl.text = '123';
-                                ctrl.login('admin', '123');
-                              },
-                              icon: const Icon(Icons.verified_user_rounded, size: 18, color: Color(0xFF10B981)),
-                              label: Text(
-                                isUrdu
-                                    ? 'بابر برادرز (مالک / ایڈمن اکاؤنٹ)'
-                                    : 'Babur Brothers (Owner / Admin Account)',
-                                style: _txt(ctrl, size: 11.5, weight: FontWeight.bold),
                               ),
                             ),
                           ] else ...[

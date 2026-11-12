@@ -213,9 +213,68 @@ class ErpController extends ChangeNotifier {
       await prefs.setString(_kCurrentUserKey, newUser.id);
     } catch (_) {}
 
+    await saveState();
+
     showToast(currentLang == 'ur'
         ? 'اکاؤنٹ بن گیا! خوش آمدید، $cleanName'
         : 'Account created! Welcome, $cleanName');
+    notifyListeners();
+    return true;
+  }
+
+  Future<bool> changePassword({
+    required String username,
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final cleanUsername = username.trim().toLowerCase();
+    final cleanCurrent = currentPassword.trim();
+    final cleanNew = newPassword.trim();
+
+    if (cleanUsername.isEmpty || cleanCurrent.isEmpty || cleanNew.isEmpty) {
+      showToast(currentLang == 'ur'
+          ? 'تمام مطلوبہ خانے پر کریں!'
+          : 'Please fill in all fields!');
+      return false;
+    }
+
+    if (cleanNew.length < 3) {
+      showToast(currentLang == 'ur'
+          ? 'نیا پاس ورڈ کم از کم 3 حروف کا ہونا چاہیے!'
+          : 'New password must be at least 3 characters!');
+      return false;
+    }
+
+    final user = users.where((u) =>
+        u.username.trim().toLowerCase() == cleanUsername ||
+        u.name.trim().toLowerCase() == cleanUsername).firstOrNull;
+
+    if (user == null) {
+      showToast(currentLang == 'ur'
+          ? 'صارف موجود نہیں ہے! درست یوزر نیم درج کریں'
+          : 'User not found! Please check username');
+      return false;
+    }
+
+    if (user.password.trim() != cleanCurrent) {
+      showToast(currentLang == 'ur'
+          ? 'موجودہ پاس ورڈ درست نہیں ہے!'
+          : 'Current password is incorrect!');
+      return false;
+    }
+
+    user.password = cleanNew;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kUsersKey, ErpUser.encodeList(users));
+    } catch (_) {}
+
+    await saveState();
+
+    showToast(currentLang == 'ur'
+        ? 'پاس ورڈ کامیابی سے تبدیل ہو گیا!'
+        : 'Password updated successfully!');
     notifyListeners();
     return true;
   }
@@ -309,6 +368,7 @@ class ErpController extends ChangeNotifier {
       'painters': painters.map((e) => e.toMap()).toList(),
       'cashLedger': cashLedger.map((e) => e.toMap()).toList(),
       'invoices': invoices.map((e) => e.toMap()).toList(),
+      'users': users.map((e) => e.toMap()).toList(),
     };
     return jsonEncode(map);
   }
@@ -361,6 +421,25 @@ class ErpController extends ChangeNotifier {
         invoices = (map['invoices'] as List)
             .map((e) => InvoiceRecord.fromMap(Map<String, dynamic>.from(e)))
             .toList();
+      }
+      if (map['users'] != null) {
+        final loadedUsers = (map['users'] as List)
+            .map((e) => ErpUser.fromMap(Map<String, dynamic>.from(e)))
+            .toList();
+        if (loadedUsers.isNotEmpty) {
+          for (final u in loadedUsers) {
+            final idx = users.indexWhere((x) =>
+                x.id == u.id || x.username.trim().toLowerCase() == u.username.trim().toLowerCase());
+            if (idx >= 0) {
+              users[idx] = u;
+            } else {
+              users.add(u);
+            }
+          }
+          SharedPreferences.getInstance().then((prefs) {
+            prefs.setString(_kUsersKey, ErpUser.encodeList(users));
+          });
+        }
       }
       if (notify) {
         saveState();

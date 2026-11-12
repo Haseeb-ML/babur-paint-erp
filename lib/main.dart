@@ -403,6 +403,20 @@ class _BaburBrothersPaintAppState extends State<BaburBrothersPaintApp> {
                             ],
                           ),
                           actions: [
+                            TextButton.icon(
+                              onPressed: () {
+                                Navigator.pop(ctx);
+                                ErpModals.openChangePasswordDialog(
+                                  context,
+                                  ctrl,
+                                  initialUsername: ctrl.currentUser?.username ?? 'admin',
+                                );
+                              },
+                              icon: const Icon(Icons.lock_reset_rounded, size: 16),
+                              label: Text(ctrl.currentLang == 'ur'
+                                  ? 'پاس ورڈ تبدیل کریں'
+                                  : 'Change Password'),
+                            ),
                             TextButton(
                               onPressed: () => Navigator.pop(ctx),
                               child: Text(ctrl.currentLang == 'ur'
