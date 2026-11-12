@@ -3,6 +3,7 @@ import 'state/erp_controller.dart';
 import 'ui/modals/erp_modals.dart';
 import 'ui/views/auth_screen.dart';
 import 'ui/views/erp_views.dart';
+import 'ui/views/invoices_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -519,7 +520,14 @@ class _BaburBrothersPaintAppState extends State<BaburBrothersPaintApp> {
                     value: ctrl.formatMoney(ctrl.totalSales),
                     labelCol: Colors.blue[100]!,
                     valCol: Colors.white,
-                    onTap: () => ctrl.switchTab('pos'),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (ctx) => AllInvoicesScreen(controller: ctrl),
+                        ),
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(width: 6),

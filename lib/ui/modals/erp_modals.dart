@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../models/erp_models.dart';
 import '../../state/erp_controller.dart';
 import '../../theme/app_themes.dart';
+import '../views/invoices_screen.dart';
 
 class ErpModals {
   static TextStyle _txt(ErpController ctrl,
@@ -894,9 +895,19 @@ class ErpModals {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Customer: $customerName',
+                      Expanded(
+                        child: Text(
+                          'Customer: $customerName',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                              fontSize: 11.5, fontWeight: FontWeight.bold, color: Colors.black87)),
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       const Text('Gobi\'s Official Dealer',
                           style: TextStyle(fontSize: 10.5, color: Colors.black54)),
                     ],
@@ -2991,31 +3002,57 @@ class ErpModals {
     String? text,
   }) async {
     final body = message ?? text ?? '';
-    var cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
-    if (cleanPhone.startsWith('0')) {
-      cleanPhone = '92${cleanPhone.substring(1)}';
-    } else if (!cleanPhone.startsWith('92') && cleanPhone.length == 10) {
-      cleanPhone = '92$cleanPhone';
-    }
-    final encodedMsg = Uri.encodeComponent(body);
-    final waUrl = cleanPhone.isEmpty
-        ? 'https://api.whatsapp.com/send?text=$encodedMsg'
-        : 'https://api.whatsapp.com/send?phone=$cleanPhone&text=$encodedMsg';
-    final uri = Uri.parse(waUrl);
-    try {
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        await Clipboard.setData(ClipboardData(text: body));
-        ctrl.showToast(ctrl.currentLang == 'ur'
-            ? 'بل کلپ بورڈ میں کاپی ہو گیا ہے'
-            : 'Bill copied to clipboard');
+    final digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
+
+    // Check if phone is empty or dummy (e.g. 0300-0000000, 923000000000, or all zeros)
+    final isDummy = digits.isEmpty ||
+        digits == '03000000000' ||
+        digits == '923000000000' ||
+        RegExp(r'^0+$').hasMatch(digits) ||
+        digits.replaceAll('0', '').length <= 2;
+
+    var cleanPhone = '';
+    if (!isDummy && digits.length >= 7) {
+      cleanPhone = digits;
+      if (cleanPhone.startsWith('0')) {
+        cleanPhone = '92${cleanPhone.substring(1)}';
+      } else if (!cleanPhone.startsWith('92') && cleanPhone.length == 10) {
+        cleanPhone = '92$cleanPhone';
       }
-    } catch (_) {
+    }
+
+    final encodedMsg = Uri.encodeComponent(body);
+
+    // List of URLs to try in order (direct app intent then web API fallback)
+    final List<String> urlsToTry = [];
+    if (cleanPhone.isNotEmpty) {
+      urlsToTry.add('whatsapp://send?phone=$cleanPhone&text=$encodedMsg');
+      urlsToTry.add('https://api.whatsapp.com/send?phone=$cleanPhone&text=$encodedMsg');
+      urlsToTry.add('https://wa.me/$cleanPhone?text=$encodedMsg');
+    } else {
+      // For walk-in customers or empty phone: opens WhatsApp contact/chat selector!
+      urlsToTry.add('whatsapp://send?text=$encodedMsg');
+      urlsToTry.add('https://api.whatsapp.com/send?text=$encodedMsg');
+    }
+
+    bool launched = false;
+    for (final u in urlsToTry) {
+      try {
+        final uri = Uri.parse(u);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+          launched = true;
+          break;
+        }
+      } catch (_) {}
+    }
+
+    if (!launched) {
+      // Fallback: Copy to clipboard
       await Clipboard.setData(ClipboardData(text: body));
       ctrl.showToast(ctrl.currentLang == 'ur'
-          ? 'بل کلپ بورڈ میں کاپی ہو گیا ہے'
-          : 'Bill copied to clipboard');
+          ? 'بل کاپی ہو گیا (واٹس ایپ میں پیسٹ کریں)'
+          : 'Bill copied to clipboard (Paste in WhatsApp)');
     }
   }
 
@@ -3360,6 +3397,19 @@ class ErpModals {
                         ctrl.currentLang == 'ur' ? 'حالیہ انوائسز اور بلز' : 'Recent Invoices',
                         style: _txt(ctrl, size: 14, weight: FontWeight.bold),
                       ),
+                    ),
+                    IconButton(
+                      tooltip: ctrl.currentLang == 'ur' ? 'مکمل صفحہ کھولیں' : 'Open Full Page',
+                      icon: const Icon(Icons.open_in_new_rounded, size: 20),
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (c) => AllInvoicesScreen(controller: ctrl),
+                          ),
+                        );
+                      },
                     ),
                     IconButton(
                       onPressed: () => Navigator.pop(ctx),

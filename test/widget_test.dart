@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:babur_brothers_paint_erp/main.dart';
 import 'package:babur_brothers_paint_erp/state/erp_controller.dart';
 import 'package:babur_brothers_paint_erp/ui/modals/erp_modals.dart';
+import 'package:babur_brothers_paint_erp/ui/views/invoices_screen.dart';
 
 void main() {
   testWidgets('Full ERP Modules, 3 Languages, Themes & Zero Overflow Test',
@@ -168,5 +169,18 @@ void main() {
     // Close barcode label dialog
     await tester.tap(find.byIcon(Icons.close_rounded));
     await tester.pumpAndSettle();
+
+    // 3. Test AllInvoicesScreen
+    Navigator.push(
+      ctx,
+      MaterialPageRoute(
+        builder: (c) => AllInvoicesScreen(controller: ctrl),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Verify all invoices screen loaded cleanly
+    expect(find.byType(AllInvoicesScreen), findsOneWidget);
+    expect(find.byIcon(Icons.search_rounded), findsOneWidget);
   });
 }

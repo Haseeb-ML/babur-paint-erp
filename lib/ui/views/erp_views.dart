@@ -3,6 +3,7 @@ import '../../models/erp_models.dart';
 import '../../state/erp_controller.dart';
 import '../../theme/app_themes.dart';
 import '../modals/erp_modals.dart';
+import 'invoices_screen.dart';
 
 class ErpViews {
   static TextStyle _txt(
@@ -221,6 +222,50 @@ class ErpViews {
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 8),
+              InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (ctx) => AllInvoicesScreen(controller: ctrl),
+                    ),
+                  );
+                },
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.receipt_long_rounded, size: 16, color: Color(0xFF10B981)),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          ctrl.currentLang == 'ur'
+                              ? 'تمام بلز کا صفحہ کھولیں (${ctrl.invoices.length})'
+                              : 'All Bills & Invoices (${ctrl.invoices.length})',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: _txt(
+                            ctrl,
+                            size: 11.5,
+                            weight: FontWeight.bold,
+                            color: const Color(0xFF10B981),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.arrow_forward_rounded, size: 14, color: Color(0xFF10B981)),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
@@ -679,7 +724,14 @@ class ErpViews {
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
-                      onPressed: () => ErpModals.openInvoicesHistoryModal(context, ctrl),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (ctx) => AllInvoicesScreen(controller: ctrl),
+                          ),
+                        );
+                      },
                       icon: const Icon(Icons.receipt_long_rounded, size: 15, color: Color(0xFFFBBF24)),
                       label: Text(
                         '${ctrl.tr('invoicesHistoryBtn')} (${ctrl.invoices.length})',

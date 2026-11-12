@@ -748,7 +748,8 @@ class ErpController extends ChangeNotifier {
     totalProfit = (totalProfit - discount) > 0 ? (totalProfit - discount) : 0;
 
     final String cName = customerName.trim().isEmpty ? tr('walkInCust') : customerName.trim();
-    final String cPhone = customerPhone.trim().isEmpty ? '0300-0000000' : customerPhone.trim();
+    final String rawPhone = customerPhone.trim();
+    final String cPhone = (rawPhone.isEmpty || rawPhone == '0300-0000000' || rawPhone == '03000000000') ? '' : rawPhone;
 
     if (painterId != null && painterId > 0) {
       final pIdx = painters.indexWhere((p) => p.id == painterId);
@@ -819,7 +820,7 @@ class ErpController extends ChangeNotifier {
           : 'Cash Bill $invoiceNo Generated!');
     } else {
       final existingCustIdx = customers.indexWhere((c) =>
-          (cPhone != '0300-0000000' && c.phone == cPhone) ||
+          (cPhone.isNotEmpty && c.phone == cPhone) ||
           c.nameUr == cName ||
           c.nameRo.toLowerCase() == cName.toLowerCase() ||
           c.nameEn.toLowerCase() == cName.toLowerCase());
