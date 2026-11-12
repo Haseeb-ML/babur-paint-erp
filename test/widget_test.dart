@@ -182,5 +182,27 @@ void main() {
     // Verify all invoices screen loaded cleanly
     expect(find.byType(AllInvoicesScreen), findsOneWidget);
     expect(find.byIcon(Icons.search_rounded), findsOneWidget);
+
+    // Pop back to dashboard
+    Navigator.pop(ctx);
+    await tester.pumpAndSettle();
+
+    // 4. Test Cash Ledger Bill matching and invoice opening
+    final firstSaleEntry = ctrl.cashLedger.firstWhere((e) => e.type == 'income');
+    final invoiceForEntry = ctrl.findInvoiceForCashEntry(firstSaleEntry);
+    expect(invoiceForEntry, isNotNull);
+    expect(invoiceForEntry!.invoiceNo, 'INV-1042');
+
+    // Open invoice dialog via ErpModals
+    ErpModals.openInvoiceDialog(ctx, ctrl, invoiceForEntry);
+    await tester.pumpAndSettle();
+
+    // Verify invoice dialog opened with thermal receipt and WhatsApp button
+    expect(find.textContaining('INV-1042'), findsAtLeastNWidgets(1));
+    expect(find.byIcon(Icons.share), findsOneWidget);
+
+    // Close invoice dialog
+    await tester.tap(find.byIcon(Icons.close_rounded).first);
+    await tester.pumpAndSettle();
   });
 }

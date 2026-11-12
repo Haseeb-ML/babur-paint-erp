@@ -3101,12 +3101,10 @@ class ErpModals {
         child: Dialog(
           backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          child: SizedBox(
-            width: 380,
-            height: 560,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 420, maxHeight: 580),
+            padding: const EdgeInsets.all(16),
+            child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Row(
@@ -3194,12 +3192,16 @@ class ErpModals {
                             ),
                             const Divider(height: 14),
                             Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  '${ctrl.currentLang == "ur" ? "گاہک" : "Cust"}: ${inv.customerName.isEmpty ? "Walk-in" : inv.customerName}',
-                                  style: _txt(ctrl, size: 11, weight: FontWeight.w600),
+                                Expanded(
+                                  child: Text(
+                                    '${ctrl.currentLang == "ur" ? "گاہک" : "Cust"}: ${inv.customerName.isEmpty ? "Walk-in" : inv.customerName}',
+                                    style: _txt(ctrl, size: 11, weight: FontWeight.w600),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
+                                const SizedBox(width: 8),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                   decoration: BoxDecoration(
@@ -3232,16 +3234,22 @@ class ErpModals {
                                   child: Row(
                                     children: [
                                       Expanded(
-                                        child: Text(
-                                          it.getName(ctrl.currentLang),
-                                          style: _txt(ctrl, size: 11),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              it.getName(ctrl.currentLang),
+                                              style: _txt(ctrl, size: 11),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            Text(
+                                              '${it.qty} × ${ctrl.formatMoney(it.price)}',
+                                              style: const TextStyle(fontSize: 10, color: Colors.grey),
+                                            ),
+                                          ],
                                         ),
-                                      ),
-                                      Text(
-                                        '${it.qty} × ${ctrl.formatMoney(it.price)}',
-                                        style: const TextStyle(fontSize: 10.5, color: Colors.grey),
                                       ),
                                       const SizedBox(width: 8),
                                       Text(
@@ -3289,8 +3297,15 @@ class ErpModals {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(ctrl.tr('lblCartGrand'),
-                                    style: _txt(ctrl, size: 12, weight: FontWeight.bold)),
+                                Expanded(
+                                  child: Text(
+                                    ctrl.tr('lblCartGrand'),
+                                    style: _txt(ctrl, size: 12, weight: FontWeight.bold),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
                                 Text(
                                   ctrl.formatMoney(inv.total),
                                   style: TextStyle(
@@ -3353,8 +3368,7 @@ class ErpModals {
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 
   // ===========================================================================

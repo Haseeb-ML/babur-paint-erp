@@ -395,9 +395,9 @@ class _AllInvoicesScreenState extends State<AllInvoicesScreen> {
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                 decoration: BoxDecoration(
                   color: badgeCol.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(6),
@@ -414,10 +414,17 @@ class _AllInvoicesScreenState extends State<AllInvoicesScreen> {
                   ),
                 ),
               ),
-              const Spacer(),
-              Text(
-                inv.dateStr,
-                style: const TextStyle(fontSize: 10.5, color: Colors.grey),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: Text(
+                    inv.dateStr,
+                    style: const TextStyle(fontSize: 10, color: Colors.grey),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ),
             ],
           ),
@@ -638,3 +645,4 @@ class _AllInvoicesScreenState extends State<AllInvoicesScreen> {
     );
   }
 }
+

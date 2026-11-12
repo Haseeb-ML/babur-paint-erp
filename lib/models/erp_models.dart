@@ -608,6 +608,8 @@ class CashLedgerEntry {
   String dateUr;
   String dateRo;
   String dateEn;
+  String? invoiceNo;
+  int? invoiceId;
 
   CashLedgerEntry({
     required this.id,
@@ -623,6 +625,8 @@ class CashLedgerEntry {
     required this.dateUr,
     required this.dateRo,
     required this.dateEn,
+    this.invoiceNo,
+    this.invoiceId,
   });
 
   String getCat(String lang) {
@@ -657,6 +661,8 @@ class CashLedgerEntry {
         'dateUr': dateUr,
         'dateRo': dateRo,
         'dateEn': dateEn,
+        'invoiceNo': invoiceNo,
+        'invoiceId': invoiceId,
       };
 
   factory CashLedgerEntry.fromMap(Map<String, dynamic> map) => CashLedgerEntry(
@@ -673,6 +679,8 @@ class CashLedgerEntry {
         dateUr: map['dateUr'] ?? 'آج',
         dateRo: map['dateRo'] ?? 'Aaj',
         dateEn: map['dateEn'] ?? 'Today',
+        invoiceNo: map['invoiceNo']?.toString(),
+        invoiceId: map['invoiceId'] != null ? int.tryParse(map['invoiceId'].toString()) : null,
       );
 
   static String encodeList(List<dynamic> list) =>

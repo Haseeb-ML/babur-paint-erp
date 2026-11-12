@@ -72,7 +72,7 @@ class ErpController extends ChangeNotifier {
     suppliers = GobisInitialData.initialSuppliers;
     painters = GobisInitialData.initialPainters;
     cashLedger = GobisInitialData.initialCashLedger;
-    invoices = [];
+    invoices = GobisInitialData.initialInvoices;
 
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -422,6 +422,9 @@ class ErpController extends ChangeNotifier {
             .map((e) => InvoiceRecord.fromMap(Map<String, dynamic>.from(e)))
             .toList();
       }
+      if (invoices.isEmpty) {
+        invoices = GobisInitialData.initialInvoices;
+      }
       if (map['users'] != null) {
         final loadedUsers = (map['users'] as List)
             .map((e) => ErpUser.fromMap(Map<String, dynamic>.from(e)))
@@ -460,7 +463,7 @@ class ErpController extends ChangeNotifier {
     suppliers = GobisInitialData.initialSuppliers;
     painters = GobisInitialData.initialPainters;
     cashLedger = GobisInitialData.initialCashLedger;
-    invoices = [];
+    invoices = GobisInitialData.initialInvoices;
     selectedShadeIndex = 1;
     await saveState();
     showToast(currentLang == 'ur'
@@ -813,6 +816,8 @@ class ErpController extends ChangeNotifier {
           dateUr: 'ابھی',
           dateRo: 'Abhi',
           dateEn: 'Just Now',
+          invoiceNo: invoiceNo,
+          invoiceId: invoiceRecord.id,
         ),
       );
       showToast(currentLang == 'ur'
@@ -933,6 +938,91 @@ class ErpController extends ChangeNotifier {
     showToast(currentLang == 'ur'
         ? 'انوائس اور اسٹاک بحال کر کے ڈیلیٹ کر دی گئی!'
         : 'Invoice deleted and inventory restored!');
+  }
+
+  /// Finds or resolves the invoice record associated with a cash ledger entry.
+  /// Matches by entry.invoiceNo, entry.invoiceId, regex extracted INV-XXXX/#XXXX,
+  /// or amount. If not found, dynamically synthesizes an InvoiceRecord for income sales.
+  InvoiceRecord? findInvoiceForCashEntry(CashLedgerEntry entry) {
+    // 1. Direct invoiceNo match
+    if (entry.invoiceNo != null && entry.invoiceNo!.trim().isNotEmpty) {
+      final clean = entry.invoiceNo!.trim().toLowerCase();
+      final match = invoices.where((i) => i.invoiceNo.trim().toLowerCase() == clean).firstOrNull;
+      if (match != null) return match;
+    }
+
+    // 2. Direct invoiceId match
+    if (entry.invoiceId != null && entry.invoiceId! > 0) {
+      final match = invoices.where((i) => i.id == entry.invoiceId).firstOrNull;
+      if (match != null) return match;
+    }
+
+    // 3. Extract INV-XXXX or #XXXX from description and category
+    final combined = '${entry.catEn} ${entry.catRo} ${entry.catUr} ${entry.descEn} ${entry.descRo} ${entry.descUr}';
+    final invReg = RegExp(r'INV-(\d+)', caseSensitive: false);
+    final invMatch = invReg.firstMatch(combined);
+    if (invMatch != null) {
+      final invNoStr = invMatch.group(0)!;
+      final match = invoices.where((i) => i.invoiceNo.toLowerCase() == invNoStr.toLowerCase()).firstOrNull;
+      if (match != null) return match;
+    }
+
+    final hashReg = RegExp(r'#(\d+)');
+    final hashMatch = hashReg.firstMatch(combined);
+    if (hashMatch != null) {
+      final numStr = hashMatch.group(1)!;
+      final match = invoices.where((i) => i.invoiceNo.contains(numStr)).firstOrNull;
+      if (match != null) return match;
+    }
+
+    // 4. Exact amount match for income sales
+    if (entry.type == 'income') {
+      final match = invoices.where((i) => (i.total - entry.amount).abs() < 1.0).firstOrNull;
+      if (match != null) return match;
+    }
+
+    // 5. If it's an income transaction, synthesize an InvoiceRecord so it opens reliably
+    if (entry.type == 'income') {
+      final invNo = invMatch?.group(0)?.toUpperCase() ??
+          (hashMatch != null ? 'INV-${hashMatch.group(1)}' : 'INV-${entry.id}');
+      final parts = entry.descEn.split(' - ');
+      final customerName = parts.length > 1
+          ? parts.first.trim()
+          : (currentLang == 'ur' ? 'عام گاہک (نقد)' : 'Walk-in Cash Customer');
+      final itemName = parts.length > 1 ? parts.sublist(1).join(' - ') : entry.descEn;
+
+      final synthInv = InvoiceRecord(
+        id: entry.id,
+        invoiceNo: invNo,
+        dateStr: entry.getDate(currentLang),
+        timestamp: DateTime.now().millisecondsSinceEpoch,
+        customerName: customerName,
+        customerPhone: '',
+        subtotal: entry.amount,
+        discount: 0,
+        total: entry.amount,
+        mode: 'Cash',
+        items: [
+          CartItem(
+            prodId: entry.id,
+            code: 'POS',
+            nameEn: itemName,
+            nameUr: entry.descUr,
+            nameRo: entry.descRo,
+            price: entry.amount,
+            cost: (entry.amount - entry.profit).clamp(0, entry.amount),
+            qty: 1,
+          ),
+        ],
+      );
+      invoices.add(synthInv);
+      entry.invoiceNo = synthInv.invoiceNo;
+      entry.invoiceId = synthInv.id;
+      saveState();
+      return synthInv;
+    }
+
+    return null;
   }
 
   // =========================================================================

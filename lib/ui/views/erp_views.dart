@@ -568,53 +568,151 @@ class ErpViews {
   ) {
     final isInc = entry.type == 'income';
     final col = isInc ? const Color(0xFF059669) : Colors.redAccent;
+    final inv = ctrl.findInvoiceForCashEntry(entry);
+    final isBill = isInc || inv != null;
+
+    void openBillOrEntry() {
+      if (isBill) {
+        final targetInv = inv ?? ctrl.findInvoiceForCashEntry(entry);
+        if (targetInv != null) {
+          ErpModals.openInvoiceDialog(context, ctrl, targetInv);
+          return;
+        }
+      }
+      ErpModals.openCashEntryModal(context, ctrl, existing: entry);
+    }
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A).withValues(alpha: 0.7) : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: col.withValues(alpha: 0.35)),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: openBillOrEntry,
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Row(
               children: [
-                Text(
-                  entry.getDesc(ctrl.currentLang),
-                  style: _txt(ctrl, size: 12, weight: FontWeight.bold, color: textMain),
+                // Left Icon
+                Container(
+                  width: 32,
+                  height: 32,
+                  margin: const EdgeInsets.only(right: 8),
+                  decoration: BoxDecoration(
+                    color: col.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    isBill ? Icons.receipt_long_rounded : Icons.payments_outlined,
+                    size: 18,
+                    color: col,
+                  ),
                 ),
-                Text(
-                  '${entry.getCat(ctrl.currentLang)} • ${entry.getDate(ctrl.currentLang)}',
-                  style: _txt(ctrl, size: 11, color: col),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        entry.getDesc(ctrl.currentLang),
+                        style: _txt(ctrl, size: 12, weight: FontWeight.bold, color: textMain),
+                      ),
+                      const SizedBox(height: 2),
+                      Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 6,
+                        runSpacing: 2,
+                        children: [
+                          Text(
+                            '${entry.getCat(ctrl.currentLang)} • ${entry.getDate(ctrl.currentLang)}',
+                            style: _txt(ctrl, size: 11, color: col),
+                          ),
+                          if (isBill)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0284C7).withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: const Color(0xFF0284C7).withValues(alpha: 0.35)),
+                              ),
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.touch_app_rounded, size: 10, color: Color(0xFF0284C7)),
+                                    const SizedBox(width: 2),
+                                    Text(
+                                      inv?.invoiceNo ?? (entry.invoiceNo ?? 'Bill'),
+                                      style: const TextStyle(
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF0284C7),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '${isInc ? '+' : '-'}${ctrl.formatMoney(entry.amount)}',
+                      style: _num(size: 12, weight: FontWeight.w900, color: col),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (isBill)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 4),
+                            child: InkWell(
+                              onTap: openBillOrEntry,
+                              borderRadius: BorderRadius.circular(6),
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF0284C7).withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Icon(
+                                  Icons.receipt_long_rounded,
+                                  size: 16,
+                                  color: Color(0xFF0284C7),
+                                ),
+                              ),
+                            ),
+                          ),
+                        _editDeleteButtons(
+                          isDark: isDark,
+                          onEdit: () => ErpModals.openCashEntryModal(context, ctrl, existing: entry),
+                          onDelete: () => ErpModals.confirmDelete(
+                            context,
+                            ctrl,
+                            itemTitle: entry.getDesc(ctrl.currentLang),
+                            onConfirm: () => ctrl.deleteCashEntry(entry.id),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 6),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '${isInc ? '+' : '-'}${ctrl.formatMoney(entry.amount)}',
-                style: _num(size: 12, weight: FontWeight.w900, color: col),
-              ),
-              const SizedBox(height: 4),
-              _editDeleteButtons(
-                isDark: isDark,
-                onEdit: () => ErpModals.openCashEntryModal(context, ctrl, existing: entry),
-                onDelete: () => ErpModals.confirmDelete(
-                  context,
-                  ctrl,
-                  itemTitle: entry.getDesc(ctrl.currentLang),
-                  onConfirm: () => ctrl.deleteCashEntry(entry.id),
-                ),
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
