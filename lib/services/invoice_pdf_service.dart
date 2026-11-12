@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart' show BuildContext, MaterialPageRoute, Navigator;
-import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter/services.dart' show Clipboard, ClipboardData, rootBundle;
+import 'package:url_launcher/url_launcher.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -687,12 +688,12 @@ class InvoicePdfService {
     ErpController ctrl,
     InvoiceRecord inv,
   ) async {
+    final safeInvNo = inv.invoiceNo.replaceAll(RegExp(r'[^a-zA-Z0-9_\-]'), '_');
     try {
       ctrl.showToast(ctrl.currentLang == 'ur'
           ? 'پی ڈی ایف انوائس تیار ہو رہی ہے...'
           : 'Generating PDF Invoice...');
 
-      final safeInvNo = inv.invoiceNo.replaceAll(RegExp(r'[^a-zA-Z0-9_\-]'), '_');
       final pdfBytes = await generateInvoicePdf(ctrl, inv);
 
       await Printing.sharePdf(
@@ -700,9 +701,32 @@ class InvoicePdfService {
         filename: 'Invoice_${safeInvNo}_Babur_Brothers.pdf',
       );
     } catch (e) {
-      ctrl.showToast(ctrl.currentLang == 'ur'
-          ? 'پی ڈی ایف شیئرنگ میں خرابی: $e'
-          : 'Failed to share PDF: $e');
+      // Fallback: If native PDF sharing fails or plugin missing, share via WhatsApp text intent
+      try {
+        final text = [
+          '*BABUR & BROTHERS HARDWARE & PAINT*',
+          'Invoice: ${inv.invoiceNo} (${inv.dateStr})',
+          'Customer: ${inv.customerName}',
+          '--------------------------------',
+          ...inv.items.map((it) => '${it.getName(ctrl.currentLang)} x${it.qty} = ${ctrl.formatMoney(it.subtotal)}'),
+          '--------------------------------',
+          'Total: ${ctrl.formatMoney(inv.total)}',
+          'Thank you for shopping with us!',
+        ].join('\n');
+        await Clipboard.setData(ClipboardData(text: text));
+        final encoded = Uri.encodeComponent(text);
+        final uri = Uri.parse('whatsapp://send?text=$encoded');
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } else {
+          final webUri = Uri.parse('https://api.whatsapp.com/send?text=$encoded');
+          await launchUrl(webUri, mode: LaunchMode.externalApplication);
+        }
+      } catch (_) {
+        ctrl.showToast(ctrl.currentLang == 'ur'
+            ? 'شیئرنگ میں خرابی: $e'
+            : 'Share failed: $e');
+      }
     }
   }
 
