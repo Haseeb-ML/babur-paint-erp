@@ -508,31 +508,34 @@ class _AllInvoicesScreenState extends State<AllInvoicesScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ...inv.items.take(2).map((it) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
+                ...inv.items.take(4).map((it) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2.5),
                       child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(
                             child: Text(
                               '• ${it.getName(ctrl.currentLang)} ×${it.qty}',
                               style: TextStyle(
-                                  fontSize: 11,
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w600,
                                   color: isDark ? Colors.white70 : Colors.black87),
-                              maxLines: 1,
+                              maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
+                          const SizedBox(width: 8),
                           Text(
                             ctrl.formatMoney(it.subtotal),
                             style: const TextStyle(
-                                fontSize: 11, fontWeight: FontWeight.bold),
+                                fontSize: 11.5, fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),
                     )),
-                if (inv.items.length > 2)
+                if (inv.items.length > 4)
                   Text(
-                    '+${inv.items.length - 2} ${isUrdu ? "مزید آئٹمز..." : "more items..."}',
+                    '+${inv.items.length - 4} ${isUrdu ? "مزید آئٹمز..." : "more items..."}',
                     style: const TextStyle(fontSize: 10, color: Colors.grey),
                   ),
               ],

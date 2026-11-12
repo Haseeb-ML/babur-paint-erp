@@ -2997,43 +2997,23 @@ class ErpModals {
   static Future<void> shareViaWhatsApp(
     BuildContext context,
     ErpController ctrl, {
-    required String phone,
+    String? phone,
     String? message,
     String? text,
   }) async {
     final body = message ?? text ?? '';
-    final digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
-
-    // Check if phone is empty or dummy (e.g. 0300-0000000, 923000000000, or all zeros)
-    final isDummy = digits.isEmpty ||
-        digits == '03000000000' ||
-        digits == '923000000000' ||
-        RegExp(r'^0+$').hasMatch(digits) ||
-        digits.replaceAll('0', '').length <= 2;
-
-    var cleanPhone = '';
-    if (!isDummy && digits.length >= 7) {
-      cleanPhone = digits;
-      if (cleanPhone.startsWith('0')) {
-        cleanPhone = '92${cleanPhone.substring(1)}';
-      } else if (!cleanPhone.startsWith('92') && cleanPhone.length == 10) {
-        cleanPhone = '92$cleanPhone';
-      }
-    }
-
     final encodedMsg = Uri.encodeComponent(body);
 
-    // List of URLs to try in order (direct app intent then web API fallback)
-    final List<String> urlsToTry = [];
-    if (cleanPhone.isNotEmpty) {
-      urlsToTry.add('whatsapp://send?phone=$cleanPhone&text=$encodedMsg');
-      urlsToTry.add('https://api.whatsapp.com/send?phone=$cleanPhone&text=$encodedMsg');
-      urlsToTry.add('https://wa.me/$cleanPhone?text=$encodedMsg');
-    } else {
-      // For walk-in customers or empty phone: opens WhatsApp contact/chat selector!
-      urlsToTry.add('whatsapp://send?text=$encodedMsg');
-      urlsToTry.add('https://api.whatsapp.com/send?text=$encodedMsg');
-    }
+    // Always copy bill text to clipboard immediately
+    await Clipboard.setData(ClipboardData(text: body));
+
+    // To prevent the "The phone number isn't on WhatsApp" error and allow sharing
+    // with ANY contact, group, or customer, open WhatsApp directly with the text.
+    // WhatsApp will open its native contact chooser screen.
+    final List<String> urlsToTry = [
+      'whatsapp://send?text=$encodedMsg',
+      'https://api.whatsapp.com/send?text=$encodedMsg',
+    ];
 
     bool launched = false;
     for (final u in urlsToTry) {
@@ -3048,12 +3028,16 @@ class ErpModals {
     }
 
     if (!launched) {
-      // Fallback: Copy to clipboard
-      await Clipboard.setData(ClipboardData(text: body));
-      ctrl.showToast(ctrl.currentLang == 'ur'
-          ? 'بل کاپی ہو گیا (واٹس ایپ میں پیسٹ کریں)'
-          : 'Bill copied to clipboard (Paste in WhatsApp)');
+      try {
+        final directUri = Uri.parse('whatsapp://send?text=$encodedMsg');
+        await launchUrl(directUri, mode: LaunchMode.externalApplication);
+        launched = true;
+      } catch (_) {}
     }
+
+    ctrl.showToast(ctrl.currentLang == 'ur'
+        ? 'بل کاپی ہو گیا! واٹس ایپ میں کسی کو بھی شیئر کریں'
+        : 'Bill copied! Share to any contact on WhatsApp');
   }
 
   // ===========================================================================
@@ -3191,28 +3175,83 @@ class ErpModals {
                               ),
                             ),
                             const Divider(height: 14),
+                            // Customer and Invoice metadata
                             Row(
                               children: [
                                 Expanded(
-                                  child: Text(
-                                    '${ctrl.currentLang == "ur" ? "گاہک" : "Cust"}: ${inv.customerName.isEmpty ? "Walk-in" : inv.customerName}',
-                                    style: _txt(ctrl, size: 11, weight: FontWeight.w600),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.person_rounded, size: 14, color: Colors.grey),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              '${ctrl.currentLang == "ur" ? "گاہک" : "Cust"}: ${inv.customerName.isEmpty ? (ctrl.currentLang == "ur" ? "عام نقد گاہک" : "Walk-in Customer") : inv.customerName}',
+                                              style: _txt(ctrl, size: 11.5, weight: FontWeight.bold),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      if (inv.customerPhone.isNotEmpty &&
+                                          inv.customerPhone != '0300-0000000') ...[
+                                        const SizedBox(height: 2),
+                                        Row(
+                                          children: [
+                                            const Icon(Icons.phone_rounded, size: 12, color: Colors.grey),
+                                            const SizedBox(width: 4),
+                                            Expanded(
+                                              child: Text(
+                                                inv.customerPhone,
+                                                style: const TextStyle(fontSize: 10.5, color: Colors.grey),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                      const SizedBox(height: 2),
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.calendar_today_rounded, size: 11, color: Colors.grey),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              inv.dateStr,
+                                              style: const TextStyle(fontSize: 10, color: Colors.grey),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
                                   ),
                                 ),
                                 const SizedBox(width: 8),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                   decoration: BoxDecoration(
                                     color: (inv.mode == 'Cash'
                                             ? const Color(0xFF10B981)
                                             : const Color(0xFFF59E0B))
                                         .withValues(alpha: 0.15),
                                     borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                      color: (inv.mode == 'Cash'
+                                              ? const Color(0xFF10B981)
+                                              : const Color(0xFFF59E0B))
+                                          .withValues(alpha: 0.35),
+                                    ),
                                   ),
                                   child: Text(
-                                    inv.mode,
+                                    inv.mode == 'Cash'
+                                        ? (ctrl.currentLang == 'ur' ? 'نقد بل' : 'Cash')
+                                        : (ctrl.currentLang == 'ur' ? 'ادھار بل' : 'Credit / Udhar'),
                                     style: TextStyle(
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,
@@ -3224,56 +3263,155 @@ class ErpModals {
                                 ),
                               ],
                             ),
-                            Text(
-                              inv.dateStr,
-                              style: const TextStyle(fontSize: 10, color: Colors.grey),
-                            ),
-                            const Divider(height: 12),
-                            ...inv.items.map((it) => Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 2.5),
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text(
-                                              it.getName(ctrl.currentLang),
-                                              style: _txt(ctrl, size: 11),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                            Text(
-                                              '${it.qty} × ${ctrl.formatMoney(it.price)}',
-                                              style: const TextStyle(fontSize: 10, color: Colors.grey),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        ctrl.formatMoney(it.subtotal),
-                                        style: _txt(ctrl, size: 11, weight: FontWeight.bold),
-                                      ),
-                                    ],
-                                  ),
-                                )),
-                            const Divider(height: 12),
-                            if (inv.discount > 0) ...[
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            const Divider(height: 14),
+
+                            // Table Header Row
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF334155).withValues(alpha: 0.5) : const Color(0xFFF1F5F9),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Row(
                                 children: [
-                                  Text(
-                                    ctrl.currentLang == 'ur' ? 'سب ٹوٹل' : 'Subtotal',
-                                    style: _txt(ctrl, size: 11, color: Colors.grey),
+                                  Expanded(
+                                    child: Text(
+                                      ctrl.currentLang == 'ur' ? 'تفصیل آئٹم و پیکنگ' : 'Item Description & Size',
+                                      style: _txt(ctrl, size: 10, weight: FontWeight.bold, color: Colors.grey.shade600),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
+                                  const SizedBox(width: 6),
                                   Text(
-                                    ctrl.formatMoney(inv.subtotal),
-                                    style: _txt(ctrl, size: 11, color: Colors.grey),
+                                    ctrl.currentLang == 'ur' ? 'تعداد × ریٹ = رقم' : 'Qty × Rate = Amount',
+                                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey),
                                   ),
                                 ],
                               ),
+                            ),
+                            const SizedBox(height: 4),
+
+                            // Items List: Full Name with Size & Pricing (No Ellipsis Truncation)
+                            ...inv.items.asMap().entries.map((entry) {
+                              final idx = entry.key;
+                              final it = entry.value;
+                              return Container(
+                                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                                decoration: BoxDecoration(
+                                  border: Border(
+                                    bottom: BorderSide(
+                                      color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06),
+                                      width: 0.7,
+                                    ),
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    // Line 1: Full Item Name with Pack Size (untruncated)
+                                    Text(
+                                      '${idx + 1}. ${it.getName(ctrl.currentLang)}',
+                                      style: _txt(ctrl, size: 12, weight: FontWeight.bold),
+                                    ),
+                                    const SizedBox(height: 3),
+                                    // Line 2: Code badge (if any) + Qty x Price and Line Subtotal
+                                    FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      alignment: AlignmentDirectional.centerStart,
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          if (it.code.isNotEmpty)
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                              margin: const EdgeInsets.only(right: 6),
+                                              decoration: BoxDecoration(
+                                                color: isDark ? Colors.white12 : Colors.grey.shade200,
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                              child: Text(
+                                                it.code,
+                                                style: const TextStyle(
+                                                  fontSize: 9.5,
+                                                  fontFamily: 'monospace',
+                                                  color: Colors.grey,
+                                                ),
+                                              ),
+                                            ),
+                                          Text(
+                                            '${it.qty} × ${ctrl.formatMoney(it.price)}',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 14),
+                                          Text(
+                                            '= ${ctrl.formatMoney(it.subtotal)}',
+                                            style: TextStyle(
+                                              fontSize: 12.5,
+                                              fontWeight: FontWeight.w900,
+                                              color: isDark ? Colors.white : Colors.black87,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }),
+                            const SizedBox(height: 6),
+
+                            // Total Items count & Total quantity
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.black.withValues(alpha: 0.02),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      '${ctrl.currentLang == "ur" ? "کل آئٹمز" : "Total Items"}: ${inv.items.length}',
+                                      style: const TextStyle(fontSize: 10.5, color: Colors.grey, fontWeight: FontWeight.bold),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Flexible(
+                                    child: Text(
+                                      '${ctrl.currentLang == "ur" ? "کل تعداد" : "Total Qty"}: ${inv.items.fold<int>(0, (s, i) => s + i.qty)}',
+                                      style: const TextStyle(fontSize: 10.5, color: Colors.grey, fontWeight: FontWeight.bold),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Divider(height: 12),
+
+                            // Subtotal (always shown)
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  ctrl.currentLang == 'ur' ? 'سب ٹوٹل' : 'Subtotal',
+                                  style: _txt(ctrl, size: 11, color: Colors.grey),
+                                ),
+                                Text(
+                                  ctrl.formatMoney(inv.subtotal),
+                                  style: _txt(ctrl, size: 11, color: Colors.grey),
+                                ),
+                              ],
+                            ),
+                            if (inv.discount > 0) ...[
                               const SizedBox(height: 3),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -3292,15 +3430,17 @@ class ErpModals {
                                   ),
                                 ],
                               ),
-                              const Divider(height: 10),
                             ],
+                            const Divider(height: 10),
+
+                            // Net Grand Total
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Expanded(
                                   child: Text(
                                     ctrl.tr('lblCartGrand'),
-                                    style: _txt(ctrl, size: 12, weight: FontWeight.bold),
+                                    style: _txt(ctrl, size: 12.5, weight: FontWeight.bold),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -3309,12 +3449,22 @@ class ErpModals {
                                 Text(
                                   ctrl.formatMoney(inv.total),
                                   style: TextStyle(
-                                    fontSize: 15,
+                                    fontSize: 16,
                                     fontWeight: FontWeight.w900,
                                     color: isDark ? Colors.cyanAccent : ctrl.palette.primary,
                                   ),
                                 ),
                               ],
+                            ),
+                            const SizedBox(height: 8),
+                            Center(
+                              child: Text(
+                                ctrl.currentLang == 'ur'
+                                    ? 'تشریف آوری کا شکریہ! جزاک اللہ خیراً'
+                                    : 'Thank you for shopping with Babur & Brothers!',
+                                style: const TextStyle(fontSize: 10, color: Colors.grey, fontStyle: FontStyle.italic),
+                                textAlign: TextAlign.center,
+                              ),
                             ),
                           ],
                         ),
