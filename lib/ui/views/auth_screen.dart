@@ -20,9 +20,7 @@ class _AuthScreenState extends State<AuthScreen> {
   // Register Controllers
   final TextEditingController _regNameCtrl = TextEditingController();
   final TextEditingController _regUsernameCtrl = TextEditingController();
-  final TextEditingController _regPhoneCtrl = TextEditingController();
   final TextEditingController _regPasswordCtrl = TextEditingController();
-  String _selectedRole = 'Owner / Admin';
 
   @override
   void dispose() {
@@ -30,7 +28,6 @@ class _AuthScreenState extends State<AuthScreen> {
     _loginPasswordCtrl.dispose();
     _regNameCtrl.dispose();
     _regUsernameCtrl.dispose();
-    _regPhoneCtrl.dispose();
     _regPasswordCtrl.dispose();
     super.dispose();
   }
@@ -280,7 +277,7 @@ class _AuthScreenState extends State<AuthScreen> {
                             _buildInputField(
                               ctrl,
                               controller: _loginUsernameCtrl,
-                              label: isUrdu ? 'یوزر نیم یا فون نمبر' : 'Username or Phone',
+                              label: isUrdu ? 'یوزر نیم (Username)' : 'Username',
                               icon: Icons.person_outline_rounded,
                               isDark: isDark,
                             ),
@@ -376,15 +373,6 @@ class _AuthScreenState extends State<AuthScreen> {
                             const SizedBox(height: 10),
                             _buildInputField(
                               ctrl,
-                              controller: _regPhoneCtrl,
-                              label: isUrdu ? 'موبائل نمبر (Mobile)' : 'Mobile Phone',
-                              icon: Icons.phone_outlined,
-                              isDark: isDark,
-                              isPhone: true,
-                            ),
-                            const SizedBox(height: 10),
-                            _buildInputField(
-                              ctrl,
                               controller: _regPasswordCtrl,
                               label: isUrdu ? 'پاس ورڈ (Password)' : 'Password',
                               icon: Icons.lock_outline_rounded,
@@ -393,57 +381,6 @@ class _AuthScreenState extends State<AuthScreen> {
                               onToggleObscure: () =>
                                   setState(() => _obscurePassword = !_obscurePassword),
                               isDark: isDark,
-                            ),
-                            const SizedBox(height: 12),
-
-                            // Role Selection
-                            Text(
-                              isUrdu ? 'ذمہ داری / عہدہ (Role):' : 'Account Role:',
-                              style: _txt(ctrl, size: 11.5, weight: FontWeight.w600),
-                            ),
-                            const SizedBox(height: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12),
-                              decoration: BoxDecoration(
-                                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: borderCol),
-                              ),
-                              child: DropdownButtonHideUnderline(
-                                child: DropdownButton<String>(
-                                  value: _selectedRole,
-                                  isExpanded: true,
-                                  dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                                  items: [
-                                    DropdownMenuItem(
-                                      value: 'Owner / Admin',
-                                      child: Text(
-                                        isUrdu ? 'مالک / ایڈمن (Owner / Admin)' : 'Owner / Admin',
-                                        style: _txt(ctrl, size: 12),
-                                      ),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'Manager',
-                                      child: Text(
-                                        isUrdu ? 'سٹور مینیجر (Store Manager)' : 'Store Manager',
-                                        style: _txt(ctrl, size: 12),
-                                      ),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'Cashier / Salesman',
-                                      child: Text(
-                                        isUrdu
-                                            ? 'سیلز کیشیئر (Cashier / Salesman)'
-                                            : 'Cashier / Salesman',
-                                        style: _txt(ctrl, size: 12),
-                                      ),
-                                    ),
-                                  ],
-                                  onChanged: (val) {
-                                    if (val != null) setState(() => _selectedRole = val);
-                                  },
-                                ),
-                              ),
                             ),
                             const SizedBox(height: 18),
                             ElevatedButton(
@@ -461,8 +398,8 @@ class _AuthScreenState extends State<AuthScreen> {
                                   name: _regNameCtrl.text,
                                   username: _regUsernameCtrl.text,
                                   password: _regPasswordCtrl.text,
-                                  role: _selectedRole,
-                                  phone: _regPhoneCtrl.text,
+                                  role: 'Owner / Admin',
+                                  phone: '',
                                 );
                               },
                               child: Text(
