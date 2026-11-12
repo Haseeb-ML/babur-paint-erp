@@ -594,7 +594,7 @@ class _AllInvoicesScreenState extends State<AllInvoicesScreen> {
                       borderRadius: BorderRadius.circular(8)),
                 ),
                 onPressed: () =>
-                    InvoicePdfService.printInvoice(context, ctrl, inv),
+                    InvoicePdfService.openInvoicePdfPreview(context, ctrl, inv),
                 icon: const Icon(Icons.print_rounded, size: 16),
               ),
               const SizedBox(width: 4),

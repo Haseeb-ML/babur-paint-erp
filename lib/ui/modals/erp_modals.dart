@@ -981,13 +981,9 @@ class ErpModals {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Close'),
+              child: Text(ctrl.currentLang == 'ur' ? 'بند کریں' : 'Close'),
             ),
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF059669),
-                foregroundColor: Colors.white,
-              ),
+            OutlinedButton.icon(
               onPressed: () {
                 final lines = [
                   '*BABUR & BROTHERS HARDWARE*',
@@ -1006,8 +1002,36 @@ class ErpModals {
                     ? 'بل واٹس ایپ کے لیے کاپی ہو گیا!'
                     : 'Invoice copied for WhatsApp share!');
               },
-              icon: const Icon(Icons.share_rounded, size: 16),
-              label: const Text('Copy for WhatsApp'),
+              icon: const Icon(Icons.copy_rounded, size: 15),
+              label: Text(ctrl.currentLang == 'ur' ? 'کاپی' : 'Copy Text'),
+            ),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1E3A8A),
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                Navigator.pop(ctx);
+                final now = DateTime.now();
+                final dateStr =
+                    '${now.day}/${now.month}/${now.year} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+                final previewInv = InvoiceRecord(
+                  id: now.millisecondsSinceEpoch,
+                  invoiceNo: 'DRAFT',
+                  customerName: customerName.isEmpty ? 'Walk-in Cash Customer' : customerName,
+                  customerPhone: '',
+                  mode: 'Cash',
+                  items: List.from(ctrl.posCart),
+                  subtotal: ctrl.cartTotal,
+                  discount: discount,
+                  total: grand.toDouble(),
+                  dateStr: dateStr,
+                  timestamp: now.millisecondsSinceEpoch,
+                );
+                InvoicePdfService.openInvoicePdfPreview(context, ctrl, previewInv);
+              },
+              icon: const Icon(Icons.picture_as_pdf_rounded, size: 16),
+              label: Text(ctrl.currentLang == 'ur' ? 'پرنٹ / پی ڈی ایف' : 'Print / PDF'),
             ),
           ],
         ),
@@ -3097,6 +3121,7 @@ class ErpModals {
       builder: (ctx) => Directionality(
         textDirection: ctrl.isRtl ? TextDirection.rtl : TextDirection.ltr,
         child: Dialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 24),
           backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           child: Container(
@@ -3494,33 +3519,43 @@ class ErpModals {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF25D366),
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
                           onPressed: () {
                             InvoicePdfService.shareInvoicePdf(context, ctrl, inv);
                           },
-                          icon: const Icon(Icons.picture_as_pdf_rounded, size: 16),
-                          label: Text(
-                            ctrl.currentLang == 'ur' ? 'پی ڈی ایف واٹس ایپ' : 'WhatsApp PDF',
-                            style: _txt(ctrl, size: 11, weight: FontWeight.bold, color: Colors.white),
+                          icon: const Icon(Icons.picture_as_pdf_rounded, size: 15),
+                          label: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              ctrl.currentLang == 'ur' ? 'واٹس ایپ PDF' : 'WhatsApp PDF',
+                              style: _txt(ctrl, size: 11, weight: FontWeight.bold, color: Colors.white),
+                            ),
                           ),
                         ),
                       ),
                       const SizedBox(width: 6),
 
-                      // 2. Print / Save PDF Button
-                      OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      // 2. Print / Save PDF Preview Button
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          onPressed: () {
+                            InvoicePdfService.openInvoicePdfPreview(context, ctrl, inv);
+                          },
+                          icon: const Icon(Icons.print_rounded, size: 15),
+                          label: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              ctrl.currentLang == 'ur' ? 'پرنٹ / PDF' : 'Print / PDF',
+                              style: _txt(ctrl, size: 11, weight: FontWeight.w600),
+                            ),
+                          ),
                         ),
-                        onPressed: () {
-                          InvoicePdfService.printInvoice(context, ctrl, inv);
-                        },
-                        icon: const Icon(Icons.print_rounded, size: 15),
-                        label: Text(ctrl.currentLang == 'ur' ? 'پرنٹ' : 'Print',
-                            style: _txt(ctrl, size: 11)),
                       ),
                       const SizedBox(width: 6),
 
@@ -4081,6 +4116,7 @@ class ErpModals {
       builder: (ctx) => Directionality(
         textDirection: ctrl.isRtl ? TextDirection.rtl : TextDirection.ltr,
         child: Dialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
           backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           child: ConstrainedBox(
@@ -4207,24 +4243,42 @@ class ErpModals {
                   Row(
                     children: [
                       Expanded(
-                        child: OutlinedButton.icon(
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                            visualDensity: VisualDensity.compact,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
                           onPressed: () {
                             Clipboard.setData(ClipboardData(text: barcodeValue));
                             ctrl.showToast(ctrl.currentLang == 'ur'
                                 ? 'بارکوڈ کاپی ہو گیا'
                                 : 'Barcode copied');
                           },
-                          icon: const Icon(Icons.copy_rounded, size: 16),
-                          label: Text(ctrl.currentLang == 'ur' ? 'کاپی کوڈ' : 'Copy Code',
-                              style: _txt(ctrl, size: 11.5)),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.copy_rounded, size: 14),
+                                const SizedBox(width: 4),
+                                Text(
+                                  ctrl.currentLang == 'ur' ? 'کاپی کوڈ' : 'Copy Code',
+                                  style: _txt(ctrl, size: 11),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
-                        child: ElevatedButton.icon(
+                        child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: ctrl.palette.primary,
                             foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                            visualDensity: VisualDensity.compact,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           ),
                           onPressed: () {
@@ -4232,9 +4286,20 @@ class ErpModals {
                                 ? 'اسٹیکر پرنٹ کمانڈ بھیج دی گئی'
                                 : 'Label sent to thermal sticker printer');
                           },
-                          icon: const Icon(Icons.print_rounded, size: 16),
-                          label: Text(ctrl.tr('barcodePrintBtn'),
-                              style: _txt(ctrl, size: 11.5, weight: FontWeight.bold, color: Colors.white)),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.print_rounded, size: 14),
+                                const SizedBox(width: 4),
+                                Text(
+                                  ctrl.tr('barcodePrintBtn'),
+                                  style: _txt(ctrl, size: 11, weight: FontWeight.bold, color: Colors.white),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                     ],
