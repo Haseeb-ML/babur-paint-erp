@@ -569,24 +569,9 @@ class _AllInvoicesScreenState extends State<AllInvoicesScreen> {
               ),
               const SizedBox(width: 8),
 
-              // 2. WhatsApp PDF Share Button
+              // 2. Open / Print PDF View Button
               IconButton.filledTonal(
-                tooltip: isUrdu ? 'واٹس ایپ PDF بھیجیں' : 'Share PDF on WhatsApp',
-                style: IconButton.styleFrom(
-                  backgroundColor: const Color(0xFF25D366).withValues(alpha: 0.15),
-                  foregroundColor: const Color(0xFF25D366),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8)),
-                ),
-                onPressed: () =>
-                    InvoicePdfService.shareInvoicePdf(context, ctrl, inv),
-                icon: const Icon(Icons.picture_as_pdf_rounded, size: 16),
-              ),
-              const SizedBox(width: 4),
-
-              // 3. Print / Save PDF Button
-              IconButton.filledTonal(
-                tooltip: isUrdu ? 'پرنٹ / پی ڈی ایف' : 'Print / Save PDF',
+                tooltip: isUrdu ? 'انوائس PDF دیکھیں اور پرنٹ کریں' : 'View PDF & Print',
                 style: IconButton.styleFrom(
                   backgroundColor: const Color(0xFF0284C7).withValues(alpha: 0.15),
                   foregroundColor: const Color(0xFF0284C7),
@@ -595,7 +580,22 @@ class _AllInvoicesScreenState extends State<AllInvoicesScreen> {
                 ),
                 onPressed: () =>
                     InvoicePdfService.openInvoicePdfPreview(context, ctrl, inv),
-                icon: const Icon(Icons.print_rounded, size: 16),
+                icon: const Icon(Icons.picture_as_pdf_rounded, size: 16),
+              ),
+              const SizedBox(width: 4),
+
+              // 3. WhatsApp PDF Share Button
+              IconButton.filledTonal(
+                tooltip: isUrdu ? 'واٹس ایپ پر PDF بھیجیں' : 'Share PDF on WhatsApp',
+                style: IconButton.styleFrom(
+                  backgroundColor: const Color(0xFF25D366).withValues(alpha: 0.15),
+                  foregroundColor: const Color(0xFF25D366),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                ),
+                onPressed: () =>
+                    InvoicePdfService.shareInvoicePdf(context, ctrl, inv),
+                icon: const Icon(Icons.share_rounded, size: 16),
               ),
               const SizedBox(width: 4),
 

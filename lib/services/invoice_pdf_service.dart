@@ -445,7 +445,7 @@ class InvoicePdfService {
                 ],
               ),
 
-              pw.Spacer(),
+              pw.SizedBox(height: 14),
 
               // 5. Footer & Signatures
               pw.Container(
@@ -504,9 +504,18 @@ class InvoicePdfService {
   ) async {
     final doc = pw.Document();
 
+    final safeHeight = (pageFormat.height.isFinite && pageFormat.height > 100)
+        ? pageFormat.height
+        : (200.0 + (inv.items.length * 36.0) + 140.0);
+    final finiteFormat = PdfPageFormat(
+      pageFormat.width,
+      safeHeight,
+      marginAll: 6 * PdfPageFormat.mm,
+    );
+
     doc.addPage(
       pw.Page(
-        pageFormat: pageFormat,
+        pageFormat: finiteFormat,
         margin: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         build: (pw.Context context) {
           return pw.Column(

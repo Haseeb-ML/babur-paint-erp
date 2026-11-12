@@ -75,9 +75,54 @@ class InvoicePdfPreviewScreen extends StatelessWidget {
           maxPageWidth: 700,
           pageFormats: const {
             'A4 Tax Invoice': PdfPageFormat.a4,
-            '80mm Thermal POS': PdfPageFormat.roll80,
+            '80mm Thermal POS': PdfPageFormat(
+              80 * PdfPageFormat.mm,
+              220 * PdfPageFormat.mm,
+              marginLeft: 4 * PdfPageFormat.mm,
+              marginRight: 4 * PdfPageFormat.mm,
+              marginTop: 6 * PdfPageFormat.mm,
+              marginBottom: 6 * PdfPageFormat.mm,
+            ),
           },
           initialPageFormat: PdfPageFormat.a4,
+          onError: (ctx, err) => Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.picture_as_pdf_rounded, color: Color(0xFF1E3A8A), size: 54),
+                  const SizedBox(height: 14),
+                  Text(
+                    isUrdu ? 'انوائس PDF تیار ہے' : 'Invoice PDF is Ready',
+                    style: _txt(ctrl, size: 15, weight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    isUrdu
+                        ? 'آپ نیچے دیے گئے بٹن سے واٹس ایپ پر بھیج سکتے ہیں یا پرنٹ کر سکتے ہیں۔'
+                        : 'You can share directly to WhatsApp or send to your printer using the buttons below.',
+                    style: const TextStyle(fontSize: 11.5, color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 18),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF25D366),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    ),
+                    onPressed: () => InvoicePdfService.shareInvoicePdf(ctx, ctrl, invoice),
+                    icon: const Icon(Icons.share_rounded, size: 18),
+                    label: Text(
+                      isUrdu ? 'واٹس ایپ پر PDF بھیجیں' : 'Share PDF on WhatsApp',
+                      style: _txt(ctrl, size: 12.5, weight: FontWeight.bold, color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
           loadingWidget: Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -153,3 +198,4 @@ class InvoicePdfPreviewScreen extends StatelessWidget {
     );
   }
 }
+
