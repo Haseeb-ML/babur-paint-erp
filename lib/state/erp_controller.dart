@@ -84,7 +84,9 @@ class ErpController extends ChangeNotifier {
       // Initialize Users & Auth Session
       final usersRaw = prefs.getString(_kUsersKey);
       if (usersRaw != null && usersRaw.isNotEmpty) {
-        users = ErpUser.decodeList(usersRaw);
+        users = ErpUser.decodeList(usersRaw)
+            .where((u) => u.id != 'cashier-1' && u.username.trim().toLowerCase() != 'cashier')
+            .toList();
       }
       if (users.isEmpty) {
         users = [
@@ -96,15 +98,9 @@ class ErpController extends ChangeNotifier {
             role: 'Owner / Admin',
             phone: '03000952862',
           ),
-          ErpUser(
-            id: 'cashier-1',
-            name: 'Counter Cashier',
-            username: 'cashier',
-            password: '123',
-            role: 'Cashier / Salesman',
-            phone: '03001234567',
-          ),
         ];
+        await prefs.setString(_kUsersKey, ErpUser.encodeList(users));
+      } else {
         await prefs.setString(_kUsersKey, ErpUser.encodeList(users));
       }
 
@@ -428,6 +424,7 @@ class ErpController extends ChangeNotifier {
       if (map['users'] != null) {
         final loadedUsers = (map['users'] as List)
             .map((e) => ErpUser.fromMap(Map<String, dynamic>.from(e)))
+            .where((u) => u.id != 'cashier-1' && u.username.trim().toLowerCase() != 'cashier')
             .toList();
         if (loadedUsers.isNotEmpty) {
           for (final u in loadedUsers) {
