@@ -221,20 +221,36 @@ class ErpController extends ChangeNotifier {
   Future<bool> changePassword({
     required String username,
     required String currentPassword,
-    required String newPassword,
+    String newPassword = '',
+    String newUsername = '',
   }) async {
     final cleanUsername = username.trim().toLowerCase();
     final cleanCurrent = currentPassword.trim();
-    final cleanNew = newPassword.trim();
+    final cleanNewPass = newPassword.trim();
+    final cleanNewUser = newUsername.trim();
 
-    if (cleanUsername.isEmpty || cleanCurrent.isEmpty || cleanNew.isEmpty) {
+    if (cleanUsername.isEmpty || cleanCurrent.isEmpty) {
       showToast(currentLang == 'ur'
-          ? 'تمام مطلوبہ خانے پر کریں!'
-          : 'Please fill in all fields!');
+          ? 'موجودہ یوزر نیم اور پاس ورڈ درج کریں!'
+          : 'Please enter current username and password!');
       return false;
     }
 
-    if (cleanNew.length < 3) {
+    if (cleanNewPass.isEmpty && cleanNewUser.isEmpty) {
+      showToast(currentLang == 'ur'
+          ? 'نیا یوزر نیم یا نیا پاس ورڈ درج کریں!'
+          : 'Please enter a new username or new password!');
+      return false;
+    }
+
+    if (cleanNewUser.isNotEmpty && cleanNewUser.length < 3) {
+      showToast(currentLang == 'ur'
+          ? 'نیا یوزر نیم کم از کم 3 حروف کا ہونا چاہیے!'
+          : 'New username must be at least 3 characters!');
+      return false;
+    }
+
+    if (cleanNewPass.isNotEmpty && cleanNewPass.length < 3) {
       showToast(currentLang == 'ur'
           ? 'نیا پاس ورڈ کم از کم 3 حروف کا ہونا چاہیے!'
           : 'New password must be at least 3 characters!');
@@ -259,7 +275,22 @@ class ErpController extends ChangeNotifier {
       return false;
     }
 
-    user.password = cleanNew;
+    if (cleanNewUser.isNotEmpty) {
+      final duplicate = users.any((u) =>
+          u.id != user.id &&
+          u.username.trim().toLowerCase() == cleanNewUser.toLowerCase());
+      if (duplicate) {
+        showToast(currentLang == 'ur'
+            ? 'یہ یوزر نیم پہلے سے موجود ہے!'
+            : 'This username is already taken!');
+        return false;
+      }
+      user.username = cleanNewUser;
+    }
+
+    if (cleanNewPass.isNotEmpty) {
+      user.password = cleanNewPass;
+    }
 
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -269,8 +300,8 @@ class ErpController extends ChangeNotifier {
     await saveState();
 
     showToast(currentLang == 'ur'
-        ? 'پاس ورڈ کامیابی سے تبدیل ہو گیا!'
-        : 'Password updated successfully!');
+        ? 'اکاؤنٹ کی تفصیلات کامیابی سے تبدیل ہو گئیں!'
+        : 'Account credentials updated successfully!');
     notifyListeners();
     return true;
   }

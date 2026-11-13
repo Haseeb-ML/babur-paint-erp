@@ -443,8 +443,8 @@ class _BaburBrothersPaintAppState extends State<BaburBrothersPaintApp> {
                               },
                               icon: const Icon(Icons.lock_reset_rounded, size: 16),
                               label: Text(ctrl.currentLang == 'ur'
-                                  ? 'پاس ورڈ تبدیل کریں'
-                                  : 'Change Password'),
+                                  ? 'یوزر نیم / پاس ورڈ تبدیل کریں'
+                                  : 'Change Username / Password'),
                             ),
                             TextButton(
                               onPressed: () => Navigator.pop(ctx),

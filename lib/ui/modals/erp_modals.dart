@@ -4321,12 +4321,14 @@ class ErpModals {
     ErpController ctrl, {
     String initialUsername = '',
     void Function(String newPassword)? onSuccess,
+    void Function(String newUsername, String newPassword)? onCredentialsUpdated,
   }) {
     final userCtrl = TextEditingController(
       text: initialUsername.isNotEmpty
           ? initialUsername
           : (ctrl.currentUser?.username ?? 'admin'),
     );
+    final newUserCtrl = TextEditingController();
     final oldPassCtrl = TextEditingController();
     final newPassCtrl = TextEditingController();
     final confirmPassCtrl = TextEditingController();
@@ -4410,8 +4412,8 @@ class ErpModals {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      isUrdu ? 'پاس ورڈ تبدیل کریں' : 'Change Password',
-                      style: _txt(ctrl, size: 14, weight: FontWeight.bold),
+                      isUrdu ? 'یوزر نیم / پاس ورڈ تبدیل کریں' : 'Change Username / Password',
+                      style: _txt(ctrl, size: 13.5, weight: FontWeight.bold),
                     ),
                   ),
                 ],
@@ -4424,7 +4426,7 @@ class ErpModals {
                     children: [
                       buildField(
                         controller: userCtrl,
-                        label: isUrdu ? 'یوزر نیم (Username)' : 'Username',
+                        label: isUrdu ? 'موجودہ یوزر نیم (Current Username)' : 'Current Username',
                         icon: Icons.person_outline_rounded,
                       ),
                       const SizedBox(height: 10),
@@ -4438,8 +4440,14 @@ class ErpModals {
                       ),
                       const SizedBox(height: 10),
                       buildField(
+                        controller: newUserCtrl,
+                        label: isUrdu ? 'نیا یوزر نیم (اختیاری - New Username)' : 'New Username (Optional)',
+                        icon: Icons.badge_outlined,
+                      ),
+                      const SizedBox(height: 10),
+                      buildField(
                         controller: newPassCtrl,
-                        label: isUrdu ? 'نیا پاس ورڈ (New Password)' : 'New Password',
+                        label: isUrdu ? 'نیا پاس ورڈ (اختیاری - New Password)' : 'New Password (Optional)',
                         icon: Icons.key_rounded,
                         isPassword: true,
                         obscure: obscureNew,
@@ -4471,7 +4479,11 @@ class ErpModals {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                   onPressed: () async {
-                    if (newPassCtrl.text.trim() != confirmPassCtrl.text.trim()) {
+                    final typedNewPass = newPassCtrl.text.trim();
+                    final typedConfirm = confirmPassCtrl.text.trim();
+                    final typedNewUser = newUserCtrl.text.trim();
+
+                    if (typedNewPass.isNotEmpty && typedNewPass != typedConfirm) {
                       ctrl.showToast(isUrdu
                           ? 'نیا پاس ورڈ اور تصدیقی پاس ورڈ ایک جیسے نہیں ہیں!'
                           : 'New passwords do not match!');
@@ -4480,15 +4492,19 @@ class ErpModals {
                     final ok = await ctrl.changePassword(
                       username: userCtrl.text.trim(),
                       currentPassword: oldPassCtrl.text.trim(),
-                      newPassword: newPassCtrl.text.trim(),
+                      newPassword: typedNewPass,
+                      newUsername: typedNewUser,
                     );
                     if (ok && ctx.mounted) {
-                      onSuccess?.call(newPassCtrl.text.trim());
+                      final finalUser = typedNewUser.isNotEmpty ? typedNewUser : userCtrl.text.trim();
+                      final finalPass = typedNewPass.isNotEmpty ? typedNewPass : oldPassCtrl.text.trim();
+                      onSuccess?.call(finalPass);
+                      onCredentialsUpdated?.call(finalUser, finalPass);
                       Navigator.pop(ctx);
                     }
                   },
                   child: Text(
-                    isUrdu ? 'پاس ورڈ اپ ڈیٹ کریں' : 'Update Password',
+                    isUrdu ? 'اپ ڈیٹ کریں (Update)' : 'Update',
                     style: _txt(ctrl, size: 12, weight: FontWeight.bold, color: Colors.white),
                   ),
                 ),

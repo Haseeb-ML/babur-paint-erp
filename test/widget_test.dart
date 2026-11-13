@@ -127,6 +127,17 @@ void main() {
     expect(ctrl.isAuthenticated, true);
     expect(ctrl.currentUser?.name, 'Asad Painter');
 
+    // 8. Test Change Username only (keeping password)
+    final changeUserOk = await ctrl.changePassword(
+      username: 'asad',
+      currentPassword: '999',
+      newUsername: 'asad_pro',
+    );
+    expect(changeUserOk, true);
+    await ctrl.logout();
+    expect(await ctrl.login('asad', '999'), false);
+    expect(await ctrl.login('asad_pro', '999'), true);
+
     await ctrl.logout();
     await tester.pump(const Duration(seconds: 3));
   });

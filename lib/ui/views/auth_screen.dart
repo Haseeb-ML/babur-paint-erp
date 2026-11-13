@@ -14,8 +14,17 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _obscurePassword = true;
 
   // Login Controllers
-  final TextEditingController _loginUsernameCtrl = TextEditingController(text: 'admin');
+  late final TextEditingController _loginUsernameCtrl;
   final TextEditingController _loginPasswordCtrl = TextEditingController(text: '123');
+
+  @override
+  void initState() {
+    super.initState();
+    final defaultUser = widget.controller.users.isNotEmpty
+        ? widget.controller.users.first.username
+        : 'admin';
+    _loginUsernameCtrl = TextEditingController(text: defaultUser);
+  }
 
   @override
   void dispose() {
@@ -264,14 +273,17 @@ class _AuthScreenState extends State<AuthScreen> {
                                   context,
                                   ctrl,
                                   initialUsername: _loginUsernameCtrl.text.trim(),
-                                  onSuccess: (newPass) {
+                                  onCredentialsUpdated: (newUser, newPass) {
+                                    _loginUsernameCtrl.text = newUser;
                                     _loginPasswordCtrl.text = newPass;
                                   },
                                 );
                               },
                               icon: const Icon(Icons.lock_reset_rounded, size: 18),
                               label: Text(
-                                isUrdu ? 'پاس ورڈ تبدیل کریں (Change Password)' : 'Change Password',
+                                isUrdu
+                                    ? 'یوزر نیم / پاس ورڈ تبدیل کریں'
+                                    : 'Change Username / Password',
                                 style: _txt(
                                   ctrl,
                                   size: 12,
