@@ -446,6 +446,7 @@ class ErpModals {
     final custPhoneCtrl = TextEditingController(text: '0300-0000000');
     final discountCtrl = TextEditingController(text: '0');
     int? selectedPainterId;
+    bool discountIsPercent = true;
 
     showModalBottomSheet(
       context: context,
@@ -456,7 +457,10 @@ class ErpModals {
           listenable: ctrl,
           builder: (ctx, _) {
             final isDark = ctrl.isDarkMode;
-            final double disc = double.tryParse(discountCtrl.text) ?? 0;
+            final double rawInput = double.tryParse(discountCtrl.text) ?? 0;
+            final double disc = discountIsPercent
+                ? (ctrl.cartTotal * (rawInput.clamp(0, 100)) / 100.0)
+                : rawInput;
             final double grand = (ctrl.cartTotal - disc) > 0 ? (ctrl.cartTotal - disc) : 0;
 
             return Directionality(
@@ -696,11 +700,82 @@ class ErpModals {
                                 children: [
                                   Expanded(
                                     flex: 4,
-                                    child: Text(ctrl.tr('lblCartDiscount'),
-                                        style: _txt(ctrl, size: 12, weight: FontWeight.w600)),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(ctrl.tr('lblCartDiscount'),
+                                            style: _txt(ctrl, size: 12, weight: FontWeight.w600)),
+                                        if (disc > 0)
+                                          Text(
+                                            discountIsPercent
+                                                ? '${rawInput.toStringAsFixed(rawInput == rawInput.roundToDouble() ? 0 : 1)}% = -${ctrl.formatMoney(disc)}'
+                                                : '-${ctrl.formatMoney(disc)}',
+                                            style: const TextStyle(
+                                              fontSize: 10.5,
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xFF10B981),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
                                   ),
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: isDark ? const Color(0xFF0F172A) : Colors.grey.shade200,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    padding: const EdgeInsets.all(2),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        InkWell(
+                                          onTap: () => setModalState(() {
+                                            discountIsPercent = true;
+                                            discountCtrl.text = '0';
+                                          }),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                                            decoration: BoxDecoration(
+                                              color: discountIsPercent ? ctrl.palette.primary : Colors.transparent,
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              '%',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.bold,
+                                                color: discountIsPercent ? Colors.white : Colors.grey,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        InkWell(
+                                          onTap: () => setModalState(() {
+                                            discountIsPercent = false;
+                                            discountCtrl.text = '0';
+                                          }),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                                            decoration: BoxDecoration(
+                                              color: !discountIsPercent ? ctrl.palette.primary : Colors.transparent,
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              'Rs',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.bold,
+                                                color: !discountIsPercent ? Colors.white : Colors.grey,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
                                   Expanded(
-                                    flex: 6,
+                                    flex: 4,
                                     child: _compactInput(
                                       ctrl,
                                       discountCtrl,
@@ -710,6 +785,45 @@ class ErpModals {
                                   ),
                                 ],
                               ),
+                              if (discountIsPercent) ...[
+                                const SizedBox(height: 6),
+                                Wrap(
+                                  spacing: 6,
+                                  runSpacing: 4,
+                                  children: [0, 2, 5, 10, 15].map((pct) {
+                                    final isSelected = (double.tryParse(discountCtrl.text) ?? -1) == pct;
+                                    return InkWell(
+                                      onTap: () => setModalState(() {
+                                        discountCtrl.text = '$pct';
+                                      }),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: isSelected
+                                              ? ctrl.palette.primary
+                                              : (isDark ? const Color(0xFF0F172A) : Colors.white),
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(
+                                            color: isSelected
+                                                ? ctrl.palette.primary
+                                                : Colors.grey.withValues(alpha: 0.35),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          '$pct%',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                            color: isSelected
+                                                ? Colors.white
+                                                : (isDark ? Colors.white70 : Colors.black87),
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                              ],
                               const Divider(height: 16),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,

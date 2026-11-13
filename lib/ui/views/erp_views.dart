@@ -901,48 +901,62 @@ class ErpViews {
                   ),
                 );
               }),
-              InkWell(
-                onTap: () => ErpModals.openProductModal(context, ctrl),
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF59E0B),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '+ ${ctrl.tr('btnNewStock')}',
-                    style: _txt(ctrl,
-                        size: 11.5, weight: FontWeight.bold, color: const Color(0xFF0F172A)),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              InkWell(
-                onTap: () => ErpModals.openBarcodeScannerModal(context, ctrl),
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF059669),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.qr_code_scanner_rounded, size: 14, color: Colors.white),
-                      const SizedBox(width: 4),
-                      Text(
-                        ctrl.tr('btnScanBarcode'),
-                        style: _txt(ctrl,
-                            size: 11, weight: FontWeight.bold, color: Colors.white),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
             ],
           ),
+        ),
+        const SizedBox(height: 10),
+
+        // 2.5 Prominent POS Quick Actions (Scan Barcode + Add New Stock)
+        Row(
+          children: [
+            Expanded(
+              flex: 3,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF059669),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () => ErpModals.openBarcodeScannerModal(context, ctrl),
+                icon: const Icon(Icons.qr_code_scanner_rounded, size: 18),
+                label: Text(
+                  ctrl.tr('btnScanBarcode'),
+                  style: _txt(ctrl,
+                      size: 12.5, weight: FontWeight.bold, color: Colors.white),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 2,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFF59E0B),
+                  foregroundColor: const Color(0xFF0F172A),
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () => ErpModals.openProductModal(context, ctrl),
+                icon: const Icon(Icons.add_box_rounded, size: 17),
+                label: Text(
+                  ctrl.tr('btnNewStock'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: _txt(ctrl,
+                      size: 11.5,
+                      weight: FontWeight.bold,
+                      color: const Color(0xFF0F172A)),
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 10),
 
