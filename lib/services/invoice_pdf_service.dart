@@ -748,21 +748,14 @@ class InvoicePdfService {
     ErpController ctrl,
     InvoiceRecord inv,
   ) async {
-    final safeInvNo = inv.invoiceNo.replaceAll(RegExp(r'[^a-zA-Z0-9_\-]'), '_');
-    try {
-      ctrl.showToast(ctrl.currentLang == 'ur'
-          ? 'پرنٹر لوڈ ہو رہا ہے...'
-          : 'Loading Printer...');
+    if (!context.mounted) return;
 
-      await Printing.layoutPdf(
-        name: 'Invoice_${safeInvNo}_Babur_Brothers.pdf',
-        onLayout: (PdfPageFormat format) async =>
-            await generateInvoicePdf(ctrl, inv, format: format),
-      );
-    } catch (e) {
-      ctrl.showToast(ctrl.currentLang == 'ur'
-          ? 'پرنٹنگ میں خرابی: $e'
-          : 'Failed to print: $e');
-    }
+    // Native print is not reliable across all platforms (web, browser, some devices).
+    // Always open the PDF preview so the user can actually see the invoice and print
+    // from the preview screen, which is supported by the app on all target platforms.
+    openInvoicePdfPreview(context, ctrl, inv);
+    ctrl.showToast(ctrl.currentLang == 'ur'
+        ? 'انوائس پریویو کھول دی گئی ہے۔ وہاں سے پرنٹ کریں'
+        : 'Invoice preview opened. Print from there.');
   }
 }

@@ -11,25 +11,16 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> {
-  bool _isRegisterMode = false;
   bool _obscurePassword = true;
 
   // Login Controllers
   final TextEditingController _loginUsernameCtrl = TextEditingController(text: 'admin');
   final TextEditingController _loginPasswordCtrl = TextEditingController(text: '123');
 
-  // Register Controllers
-  final TextEditingController _regNameCtrl = TextEditingController();
-  final TextEditingController _regUsernameCtrl = TextEditingController();
-  final TextEditingController _regPasswordCtrl = TextEditingController();
-
   @override
   void dispose() {
     _loginUsernameCtrl.dispose();
     _loginPasswordCtrl.dispose();
-    _regNameCtrl.dispose();
-    _regUsernameCtrl.dispose();
-    _regPasswordCtrl.dispose();
     super.dispose();
   }
 
@@ -204,208 +195,92 @@ class _AuthScreenState extends State<AuthScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          // Tab Bar (Login vs Register)
-                          Container(
-                            decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            padding: const EdgeInsets.all(4),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: InkWell(
-                                    onTap: () => setState(() => _isRegisterMode = false),
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(vertical: 9),
-                                      decoration: BoxDecoration(
-                                        color: !_isRegisterMode
-                                            ? ctrl.palette.primary
-                                            : Colors.transparent,
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      alignment: Alignment.center,
-                                      child: Text(
-                                        isUrdu ? 'لاگ ان (Sign In)' : 'Sign In',
-                                        style: _txt(
-                                          ctrl,
-                                          size: 12,
-                                          weight: FontWeight.bold,
-                                          color: !_isRegisterMode
-                                              ? Colors.white
-                                              : (isDark ? Colors.grey : Colors.black87),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                Expanded(
-                                  child: InkWell(
-                                    onTap: () => setState(() => _isRegisterMode = true),
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(vertical: 9),
-                                      decoration: BoxDecoration(
-                                        color: _isRegisterMode
-                                            ? ctrl.palette.primary
-                                            : Colors.transparent,
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      alignment: Alignment.center,
-                                      child: Text(
-                                        isUrdu ? 'نیا اکاؤنٹ (Register)' : 'Register',
-                                        style: _txt(
-                                          ctrl,
-                                          size: 12,
-                                          weight: FontWeight.bold,
-                                          color: _isRegisterMode
-                                              ? Colors.white
-                                              : (isDark ? Colors.grey : Colors.black87),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
+                          // Section Title (Sign In)
+                          Center(
+                            child: Text(
+                              isUrdu ? 'لاگ ان (Sign In)' : 'Sign In',
+                              style: _txt(
+                                ctrl,
+                                size: 15,
+                                weight: FontWeight.bold,
+                                color: isDark ? Colors.white : const Color(0xFF1E293B),
+                              ),
                             ),
                           ),
-                          const SizedBox(height: 18),
+                          const SizedBox(height: 16),
 
-                          // Form Content
-                          if (!_isRegisterMode) ...[
-                            // LOGIN FORM
-                            _buildInputField(
-                              ctrl,
-                              controller: _loginUsernameCtrl,
-                              label: isUrdu ? 'یوزر نیم (Username)' : 'Username',
-                              icon: Icons.person_outline_rounded,
-                              isDark: isDark,
-                            ),
-                            const SizedBox(height: 12),
-                            _buildInputField(
-                              ctrl,
-                              controller: _loginPasswordCtrl,
-                              label: isUrdu ? 'پاس ورڈ' : 'Password',
-                              icon: Icons.lock_outline_rounded,
-                              isPassword: true,
-                              obscure: _obscurePassword,
-                              onToggleObscure: () =>
-                                  setState(() => _obscurePassword = !_obscurePassword),
-                              isDark: isDark,
-                            ),
-                            const SizedBox(height: 18),
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: ctrl.palette.primary,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 13),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                elevation: 2,
+                          // LOGIN FORM
+                          _buildInputField(
+                            ctrl,
+                            controller: _loginUsernameCtrl,
+                            label: isUrdu ? 'یوزر نیم (Username)' : 'Username',
+                            icon: Icons.person_outline_rounded,
+                            isDark: isDark,
+                          ),
+                          const SizedBox(height: 12),
+                          _buildInputField(
+                            ctrl,
+                            controller: _loginPasswordCtrl,
+                            label: isUrdu ? 'پاس ورڈ' : 'Password',
+                            icon: Icons.lock_outline_rounded,
+                            isPassword: true,
+                            obscure: _obscurePassword,
+                            onToggleObscure: () =>
+                                setState(() => _obscurePassword = !_obscurePassword),
+                            isDark: isDark,
+                          ),
+                          const SizedBox(height: 18),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: ctrl.palette.primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 13),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
                               ),
+                              elevation: 2,
+                            ),
+                            onPressed: () {
+                              ctrl.login(
+                                _loginUsernameCtrl.text,
+                                _loginPasswordCtrl.text,
+                              );
+                            },
+                            child: Text(
+                              isUrdu ? 'لاگ ان کریں (Sign In)' : 'Sign In',
+                              style: _txt(
+                                ctrl,
+                                size: 13,
+                                weight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          Center(
+                            child: TextButton.icon(
                               onPressed: () {
-                                ctrl.login(
-                                  _loginUsernameCtrl.text,
-                                  _loginPasswordCtrl.text,
+                                ErpModals.openChangePasswordDialog(
+                                  context,
+                                  ctrl,
+                                  initialUsername: _loginUsernameCtrl.text.trim(),
+                                  onSuccess: (newPass) {
+                                    _loginPasswordCtrl.text = newPass;
+                                  },
                                 );
                               },
-                              child: Text(
-                                isUrdu ? 'لاگ ان کریں (Sign In)' : 'Sign In',
+                              icon: const Icon(Icons.lock_reset_rounded, size: 18),
+                              label: Text(
+                                isUrdu ? 'پاس ورڈ تبدیل کریں (Change Password)' : 'Change Password',
                                 style: _txt(
                                   ctrl,
-                                  size: 13,
-                                  weight: FontWeight.bold,
-                                  color: Colors.white,
+                                  size: 12,
+                                  weight: FontWeight.w600,
+                                  color: ctrl.palette.primary,
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 14),
-                            Center(
-                              child: TextButton.icon(
-                                onPressed: () {
-                                  ErpModals.openChangePasswordDialog(
-                                    context,
-                                    ctrl,
-                                    initialUsername: _loginUsernameCtrl.text.trim(),
-                                    onSuccess: (newPass) {
-                                      _loginPasswordCtrl.text = newPass;
-                                    },
-                                  );
-                                },
-                                icon: const Icon(Icons.lock_reset_rounded, size: 18),
-                                label: Text(
-                                  isUrdu ? 'پاس ورڈ تبدیل کریں (Change Password)' : 'Change Password',
-                                  style: _txt(
-                                    ctrl,
-                                    size: 12,
-                                    weight: FontWeight.w600,
-                                    color: ctrl.palette.primary,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ] else ...[
-                            // REGISTER FORM
-                            _buildInputField(
-                              ctrl,
-                              controller: _regNameCtrl,
-                              label: isUrdu ? 'مکمل نام (Full Name)' : 'Full Name',
-                              icon: Icons.badge_outlined,
-                              isDark: isDark,
-                            ),
-                            const SizedBox(height: 10),
-                            _buildInputField(
-                              ctrl,
-                              controller: _regUsernameCtrl,
-                              label: isUrdu ? 'یوزر نیم (Username)' : 'Username',
-                              icon: Icons.person_outline_rounded,
-                              isDark: isDark,
-                            ),
-                            const SizedBox(height: 10),
-                            _buildInputField(
-                              ctrl,
-                              controller: _regPasswordCtrl,
-                              label: isUrdu ? 'پاس ورڈ (Password)' : 'Password',
-                              icon: Icons.lock_outline_rounded,
-                              isPassword: true,
-                              obscure: _obscurePassword,
-                              onToggleObscure: () =>
-                                  setState(() => _obscurePassword = !_obscurePassword),
-                              isDark: isDark,
-                            ),
-                            const SizedBox(height: 18),
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF059669),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 13),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                elevation: 2,
-                              ),
-                              onPressed: () {
-                                ctrl.register(
-                                  name: _regNameCtrl.text,
-                                  username: _regUsernameCtrl.text,
-                                  password: _regPasswordCtrl.text,
-                                  role: 'Owner / Admin',
-                                  phone: '',
-                                );
-                              },
-                              child: Text(
-                                isUrdu ? 'اکاؤنٹ بنائیں اور شروع کریں' : 'Create Account & Sign In',
-                                style: _txt(
-                                  ctrl,
-                                  size: 13,
-                                  weight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ],
+                          ),
                         ],
                       ),
                     ),

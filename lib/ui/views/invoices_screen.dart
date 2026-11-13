@@ -569,9 +569,9 @@ class _AllInvoicesScreenState extends State<AllInvoicesScreen> {
               ),
               const SizedBox(width: 8),
 
-              // 2. Direct Print Button (Native System Print Spooler)
+              // 2. Preview / Print Button
               IconButton.filledTonal(
-                tooltip: isUrdu ? 'انوائس پرنٹ کریں' : 'Print Invoice',
+                tooltip: isUrdu ? 'انوائس پریویو/پرنٹ' : 'Open Preview / Print',
                 style: IconButton.styleFrom(
                   backgroundColor: const Color(0xFF0284C7).withValues(alpha: 0.15),
                   foregroundColor: const Color(0xFF0284C7),
