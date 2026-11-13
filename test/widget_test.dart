@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pdf/pdf.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:babur_brothers_paint_erp/data/gobis_shade_cards.dart';
 import 'package:babur_brothers_paint_erp/main.dart';
 import 'package:babur_brothers_paint_erp/services/invoice_pdf_service.dart';
 import 'package:babur_brothers_paint_erp/state/erp_controller.dart';
@@ -230,5 +231,87 @@ void main() {
     );
     expect(pdfBytesThermal.isNotEmpty, true);
     expect(pdfBytesThermal.lengthInBytes, greaterThan(300));
+  });
+
+  testWidgets('Category & Shade-Wise Barcode Stock-In Flow Test',
+      (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(380, 820);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    final ctrl = ErpController();
+    await ctrl.init();
+    ctrl.setLanguage('en');
+
+    // 1. Verify official shade card catalog loaded
+    final goldEmulsionShades = GobisShadeCards.shadesFor(
+      'Gold',
+      'Gold Luxurious Wall Emulsion',
+    );
+    expect(goldEmulsionShades.any((s) => s.shadeCode == '1400' && s.shadeName == 'White'), true);
+    expect(GobisShadeCards.categoriesForSeries('Hercules'), contains('Hercules Emulsion'));
+
+    // 2. Link new barcode to Gold Luxurious Wall Emulsion - 1400 White with 8 gallons
+    final created = ctrl.linkBarcodeAndAddStock(
+      barcode: '896400099887',
+      series: 'Gold',
+      cat: 'Emulsion',
+      categoryLabel: 'Gold Luxurious Wall Emulsion',
+      shadeCode: '1400',
+      shadeName: 'White',
+      colorHex: '#FFFFFF',
+      sizeLabel: '3.64L (Gallon)',
+      costPrice: 3900,
+      salePrice: 4600,
+      qty: 8,
+    );
+    expect(created.stock, 8);
+    expect(created.shadeCode, '1400');
+    expect(created.shadeName, 'White');
+
+    // 3. Scan same barcode again (+4 units) -> stock becomes 12
+    final updated = ctrl.scanStockIn('896400099887', qty: 4);
+    expect(updated, isNotNull);
+    expect(updated!.stock, 12);
+
+    // 4. Open Stock-In Barcode Scanner Modal on mobile viewport & test unknown barcode linking
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => ElevatedButton(
+              onPressed: () => ErpModals.openBarcodeScannerModal(
+                context,
+                ctrl,
+                isStockIn: true,
+              ),
+              child: const Text('Open Stock-In'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open Stock-In'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Stock-In Barcode Scanner'), findsOneWidget);
+    expect(find.text('Done Stock-In (0 Added)'), findsOneWidget);
+
+    // Enter unknown barcode and submit
+    await tester.enterText(find.byType(TextField).first, '999888777666');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+
+    expect(find.text('New Barcode: 999888777666'), findsOneWidget);
+
+    // Save shade & +1 stock
+    await tester.ensureVisible(find.text('Save Shade & +1 Stock'));
+    await tester.tap(find.text('Save Shade & +1 Stock'));
+    await tester.pumpAndSettle();
+
+    expect(ctrl.findProductByBarcode('999888777666'), isNotNull);
+    expect(find.text('Done Stock-In (1 Added)'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 3));
   });
 }

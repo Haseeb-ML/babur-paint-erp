@@ -80,6 +80,8 @@ class PaintProduct {
   int stock;
   int minStock;
   String colorHex;
+  String shadeCode;
+  String shadeName;
 
   PaintProduct({
     required this.id,
@@ -101,6 +103,8 @@ class PaintProduct {
     required this.stock,
     required this.minStock,
     required this.colorHex,
+    this.shadeCode = '',
+    this.shadeName = '',
   }) : barcode = (barcode != null && barcode.isNotEmpty) ? barcode : code;
 
   String getName(String lang) {
@@ -153,6 +157,8 @@ class PaintProduct {
         'stock': stock,
         'minStock': minStock,
         'colorHex': colorHex,
+        'shadeCode': shadeCode,
+        'shadeName': shadeName,
       };
 
   factory PaintProduct.fromMap(Map<String, dynamic> map) => PaintProduct(
@@ -175,6 +181,8 @@ class PaintProduct {
         stock: map['stock'] ?? 0,
         minStock: map['minStock'] ?? 4,
         colorHex: map['colorHex'] ?? '#93C5FD',
+        shadeCode: map['shadeCode'] ?? '',
+        shadeName: map['shadeName'] ?? '',
       );
 }
 

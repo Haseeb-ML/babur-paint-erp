@@ -728,6 +728,98 @@ class ErpController extends ChangeNotifier {
     return false;
   }
 
+  /// Scans a barcode during Stock-In and increments stock by [qty].
+  /// Returns the matched [PaintProduct] if found, or `null` if unknown barcode.
+  PaintProduct? scanStockIn(String barcode, {int qty = 1}) {
+    final clean = barcode.trim();
+    if (clean.isEmpty || qty <= 0) return null;
+    final product = findProductByBarcode(clean);
+    if (product == null) return null;
+    product.stock += qty;
+    saveState();
+    final shadeTag = product.shadeCode.isNotEmpty
+        ? ' (${product.shadeCode} ${product.shadeName})'
+        : '';
+    showToast(currentLang == 'ur'
+        ? '+$qty ${product.nameUr}$shadeTag سٹاک میں شامل ہو گیا! کل: ${product.stock}'
+        : '+$qty ${product.nameEn}$shadeTag added! Stock: ${product.stock}');
+    notifyListeners();
+    return product;
+  }
+
+  /// Links an unknown [barcode] to an existing product or creates a new
+  /// category/shade-wise product, adds [qty] stock, and persists to local + Firebase.
+  PaintProduct linkBarcodeAndAddStock({
+    required String barcode,
+    int? existingProductId,
+    String brand = 'Gobis',
+    String series = 'Gold',
+    String cat = 'Emulsion',
+    String categoryLabel = '',
+    String shadeCode = '',
+    String shadeName = '',
+    String colorHex = '#93C5FD',
+    String sizeLabel = '3.64L (Gallon)',
+    double costPrice = 0,
+    double salePrice = 0,
+    int qty = 1,
+  }) {
+    final cleanBarcode = barcode.trim();
+    if (existingProductId != null) {
+      final idx = inventory.indexWhere((p) => p.id == existingProductId);
+      if (idx >= 0) {
+        final existing = inventory[idx];
+        existing.barcode = cleanBarcode;
+        existing.stock += qty;
+        if (shadeCode.isNotEmpty) existing.shadeCode = shadeCode;
+        if (shadeName.isNotEmpty) existing.shadeName = shadeName;
+        if (colorHex.isNotEmpty) existing.colorHex = colorHex;
+        saveState();
+        showToast('+$qty ${existing.nameEn} (${existing.stock} in stock)');
+        notifyListeners();
+        return existing;
+      }
+    }
+
+    final baseName = categoryLabel.isNotEmpty ? categoryLabel : '$series $cat';
+    final shadeSuffix = shadeName.isNotEmpty
+        ? ' - ${shadeCode.isNotEmpty ? "$shadeCode " : ""}$shadeName'
+        : '';
+    final fullName = '$baseName$shadeSuffix';
+    final generatedCode = shadeCode.isNotEmpty
+        ? '${series.substring(0, 1).toUpperCase()}-$shadeCode'
+        : 'GB-${inventory.length + 1}';
+
+    final created = PaintProduct(
+      id: DateTime.now().millisecondsSinceEpoch,
+      code: generatedCode,
+      barcode: cleanBarcode.isEmpty ? generatedCode : cleanBarcode,
+      brand: brand,
+      series: series,
+      cat: cat,
+      nameUr: fullName,
+      nameRo: fullName,
+      nameEn: fullName,
+      sizeUr: sizeLabel,
+      sizeRo: sizeLabel,
+      sizeEn: sizeLabel,
+      costPrice: costPrice,
+      retailPrice: costPrice,
+      gstAmount: 0,
+      salePrice: salePrice > 0 ? salePrice : costPrice,
+      stock: qty,
+      minStock: 4,
+      colorHex: colorHex,
+      shadeCode: shadeCode,
+      shadeName: shadeName,
+    );
+    inventory.insert(0, created);
+    saveState();
+    showToast('+$qty $fullName added to inventory!');
+    notifyListeners();
+    return created;
+  }
+
   void changeCartQty(int index, int delta) {
     if (index < 0 || index >= posCart.length) return;
     posCart[index].qty += delta;
@@ -1223,6 +1315,8 @@ class ErpController extends ChangeNotifier {
     required int stock,
     required int minStock,
     String colorHex = '#93C5FD',
+    String? shadeCode,
+    String? shadeName,
   }) {
     final finalBarcode = (barcode != null && barcode.trim().isNotEmpty)
         ? barcode.trim()
@@ -1251,6 +1345,8 @@ class ErpController extends ChangeNotifier {
           stock: stock,
           minStock: minStock,
           colorHex: colorHex,
+          shadeCode: shadeCode ?? old.shadeCode,
+          shadeName: shadeName ?? old.shadeName,
         );
       }
     } else {
@@ -1276,6 +1372,8 @@ class ErpController extends ChangeNotifier {
           stock: stock,
           minStock: minStock,
           colorHex: colorHex,
+          shadeCode: shadeCode ?? '',
+          shadeName: shadeName ?? '',
         ),
       );
     }

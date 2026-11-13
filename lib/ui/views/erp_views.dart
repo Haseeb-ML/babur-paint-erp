@@ -1718,18 +1718,25 @@ class ErpViews {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      IconButton(
-                        style: IconButton.styleFrom(
-                          backgroundColor: Colors.white.withValues(alpha: 0.15),
-                          padding: const EdgeInsets.all(7),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            side: const BorderSide(color: Colors.white24),
-                          ),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF10B981),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         ),
-                        onPressed: () => ErpModals.openBarcodeScannerModal(context, ctrl),
-                        tooltip: ctrl.tr('btnScanBarcode'),
-                        icon: const Icon(Icons.qr_code_scanner_rounded, size: 16, color: Color(0xFFFBBF24)),
+                        onPressed: () => ErpModals.openBarcodeScannerModal(
+                            context, ctrl,
+                            isStockIn: true),
+                        icon: const Icon(Icons.qr_code_scanner_rounded, size: 15),
+                        label: Text(
+                          ctrl.currentLang == 'ur'
+                              ? 'اسکین سٹاک'
+                              : 'Scan Stock-In',
+                          style: _txt(ctrl,
+                              size: 10.5, weight: FontWeight.w800, color: Colors.white),
+                        ),
                       ),
                       const SizedBox(width: 5),
                       ElevatedButton(
@@ -1874,7 +1881,9 @@ class ErpViews {
                             style: _txt(ctrl, size: 12.5, weight: FontWeight.bold, color: textMain),
                           ),
                           Text(
-                            '${item.series} • ${item.getSize(ctrl.currentLang)}',
+                            '${item.series} • ${item.cat}'
+                            '${item.shadeCode.isNotEmpty || item.shadeName.isNotEmpty ? " • #${item.shadeCode} ${item.shadeName}" : ""}'
+                            ' • ${item.getSize(ctrl.currentLang)}',
                             style: _txt(ctrl, size: 11, color: Colors.grey),
                           ),
                         ],

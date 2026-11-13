@@ -1,6 +1,9 @@
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../data/gobis_shade_cards.dart';
 import '../../models/erp_models.dart';
 import '../../services/invoice_pdf_service.dart';
 import '../../state/erp_controller.dart';
@@ -1229,10 +1232,39 @@ class ErpModals {
     final priceCtrl = TextEditingController(text: existing != null ? '${existing.salePrice.round()}' : '4468');
     final qtyCtrl = TextEditingController(text: existing != null ? '${existing.stock}' : '12');
     final minCtrl = TextEditingController(text: existing != null ? '${existing.minStock}' : '4');
+    final shadeCodeCtrl = TextEditingController(text: existing?.shadeCode ?? '');
+    final shadeNameCtrl = TextEditingController(text: existing?.shadeName ?? '');
 
     String brand = existing?.brand ?? 'Gobis';
     String series = existing?.series ?? 'Decorative';
     String cat = existing?.cat ?? 'Emulsion';
+
+    final seriesItems = [
+      'Gold',
+      'Hercules',
+      'Protector',
+      'Decorative',
+      'Carman NC',
+      'Silverline',
+      'BigBang 2K',
+      'Tusker 2K',
+      'NC Thinner',
+      'Stoving',
+      'Epoxy & Ind',
+      'Timberline',
+      'Ancillaries',
+    ];
+    if (!seriesItems.contains(series)) seriesItems.add(series);
+    final catItems = [
+      'Emulsion',
+      'Weather',
+      'Enamel',
+      'NC2K',
+      'Wood',
+      'StovingEpoxy',
+      'Hardware',
+    ];
+    if (!catItems.contains(cat)) catItems.add(cat);
 
     showModalBottomSheet(
       context: context,
@@ -1292,7 +1324,24 @@ class ErpModals {
                           Expanded(
                             child: _inputField(ctrl, barcodeCtrl, 'Barcode (EAN-13 / Code-128)'),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 6),
+                          IconButton(
+                            tooltip: 'Scan with Camera',
+                            style: IconButton.styleFrom(
+                              backgroundColor: ctrl.palette.primary.withValues(alpha: 0.12),
+                              foregroundColor: ctrl.palette.primary,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            onPressed: () async {
+                              final scanned = await _scanSingleBarcode(context, ctrl);
+                              if (scanned != null && scanned.isNotEmpty) {
+                                barcodeCtrl.text = scanned;
+                                setModalState(() {});
+                              }
+                            },
+                            icon: const Icon(Icons.qr_code_scanner_rounded, size: 20),
+                          ),
+                          const SizedBox(width: 6),
                           ElevatedButton.icon(
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFFF59E0B),
@@ -1317,18 +1366,7 @@ class ErpModals {
                             child: _dropdownBox(
                               ctrl,
                               value: series,
-                              items: const [
-                                'Decorative',
-                                'Carman NC',
-                                'Silverline',
-                                'BigBang 2K',
-                                'Tusker 2K',
-                                'NC Thinner',
-                                'Stoving',
-                                'Epoxy & Ind',
-                                'Timberline',
-                                'Ancillaries'
-                              ],
+                              items: seriesItems,
                               onChanged: (v) => setModalState(() => series = v!),
                             ),
                           ),
@@ -1337,17 +1375,23 @@ class ErpModals {
                             child: _dropdownBox(
                               ctrl,
                               value: cat,
-                              items: const [
-                                'Emulsion',
-                                'Weather',
-                                'Enamel',
-                                'NC2K',
-                                'Wood',
-                                'StovingEpoxy',
-                                'Hardware'
-                              ],
+                              items: catItems,
                               onChanged: (v) => setModalState(() => cat = v!),
                             ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 4,
+                            child: _inputField(ctrl, shadeCodeCtrl, 'Shade # (e.g. 1400)'),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            flex: 6,
+                            child: _inputField(ctrl, shadeNameCtrl, 'Shade Colour (e.g. White)'),
                           ),
                         ],
                       ),
@@ -1442,6 +1486,8 @@ class ErpModals {
                                     stock: int.tryParse(qtyCtrl.text) ?? 10,
                                     minStock: int.tryParse(minCtrl.text) ?? 4,
                                     colorHex: existing.colorHex,
+                                    shadeCode: shadeCodeCtrl.text.trim(),
+                                    shadeName: shadeNameCtrl.text.trim(),
                                   );
                                   Navigator.pop(ctx);
                                 },
@@ -1483,6 +1529,8 @@ class ErpModals {
                                 stock: int.tryParse(qtyCtrl.text) ?? 10,
                                 minStock: int.tryParse(minCtrl.text) ?? 4,
                                 colorHex: '#93C5FD',
+                                shadeCode: shadeCodeCtrl.text.trim(),
+                                shadeName: shadeNameCtrl.text.trim(),
                               );
                               Navigator.pop(ctx);
                             },
@@ -3772,10 +3820,104 @@ class ErpModals {
   // ===========================================================================
   // 18. BARCODE SCANNER MODAL (FOR INSTANT POS BILLING)
   // ===========================================================================
-  static void openBarcodeScannerModal(BuildContext context, ErpController ctrl) {
+  static Color _parseHexColor(String hex) {
+    final clean = hex.replaceAll('#', '').trim();
+    if (clean.length == 6) {
+      return Color(int.tryParse('FF$clean', radix: 16) ?? 0xFF93C5FD);
+    }
+    return const Color(0xFF93C5FD);
+  }
+
+  static bool get _supportsLiveCamera {
+    final isTestBinding =
+        WidgetsBinding.instance.runtimeType.toString().contains('Test');
+    if (isTestBinding) return false;
+    return defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS;
+  }
+
+  static Future<String?> _scanSingleBarcode(
+      BuildContext context, ErpController ctrl) async {
+    if (!_supportsLiveCamera) {
+      ctrl.showToast('Camera scanning works on Android/iOS devices');
+      return null;
+    }
+    final scannerCtrl = MobileScannerController();
+    bool handled = false;
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dlgCtx) => AlertDialog(
+        title: Text(ctrl.tr('barcodeScannerTitle'),
+            style: _txt(ctrl, size: 14, weight: FontWeight.bold)),
+        content: SizedBox(
+          width: 300,
+          height: 240,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: MobileScanner(
+              controller: scannerCtrl,
+              onDetect: (capture) {
+                if (handled) return;
+                for (final b in capture.barcodes) {
+                  final raw = b.rawValue?.trim() ?? '';
+                  if (raw.isNotEmpty) {
+                    handled = true;
+                    Navigator.pop(dlgCtx, raw);
+                    break;
+                  }
+                }
+              },
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dlgCtx),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+    scannerCtrl.dispose();
+    return result;
+  }
+
+  static void openBarcodeScannerModal(BuildContext context, ErpController ctrl,
+      {bool isStockIn = false}) {
     final barcodeCtrl = TextEditingController();
+    final costCtrl = TextEditingController(text: '3800');
+    final priceCtrl = TextEditingController(text: '4500');
+    final scannerCtrl = _supportsLiveCamera ? MobileScannerController() : null;
+
+    bool stockInMode = isStockIn;
+    bool useCamera = _supportsLiveCamera;
+    bool torchOn = false;
+    int stockInQty = 1;
     PaintProduct? lastScanned;
     int scanCount = 0;
+    String? unknownBarcode;
+    String lastDetectedCode = '';
+    DateTime lastDetectedAt = DateTime.fromMillisecondsSinceEpoch(0);
+
+    // Unknown barcode linking state
+    bool linkExistingMode = false;
+    int? selectedExistingId =
+        ctrl.inventory.isNotEmpty ? ctrl.inventory.first.id : null;
+    String selectedSeries = GobisShadeCards.seriesList.first;
+    String selectedCategory =
+        GobisShadeCards.categoriesForSeries(selectedSeries).first;
+    List<ShadeCardEntry> availableShades =
+        GobisShadeCards.shadesFor(selectedSeries, selectedCategory);
+    ShadeCardEntry? selectedShade =
+        availableShades.isNotEmpty ? availableShades.first : null;
+    String selectedSize = '3.64L (Gallon)';
+    const sizeOptions = [
+      '0.91L (Quarter)',
+      '3.64L (Gallon)',
+      '14.56L (Drum)',
+      '1 Litre',
+      '4 Litre',
+    ];
 
     showModalBottomSheet(
       context: context,
@@ -3784,36 +3926,62 @@ class ErpModals {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModalState) {
           final isDark = ctrl.isDarkMode;
-          final cardBg = isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC);
+          final cardBg =
+              isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC);
 
           void handleScan(String raw) {
             final code = raw.trim();
             if (code.isEmpty) return;
-            final product = ctrl.findProductByBarcode(code);
-            if (product != null) {
-              ctrl.addToPosCart(product);
-              setModalState(() {
-                lastScanned = product;
-                scanCount++;
-                barcodeCtrl.clear();
-              });
+
+            if (stockInMode) {
+              final updated = ctrl.scanStockIn(code, qty: stockInQty);
+              if (updated != null) {
+                setModalState(() {
+                  lastScanned = updated;
+                  unknownBarcode = null;
+                  scanCount += stockInQty;
+                  barcodeCtrl.clear();
+                });
+              } else {
+                setModalState(() {
+                  lastScanned = null;
+                  unknownBarcode = code;
+                  barcodeCtrl.clear();
+                });
+                ctrl.showToast(ctrl.currentLang == 'ur'
+                    ? 'نیا بارکوڈ! نیچے کیٹیگری اور شیڈ منتخب کریں'
+                    : 'New barcode! Select Category & Shade below to link');
+              }
             } else {
-              setModalState(() {
-                lastScanned = null;
-              });
-              ctrl.showToast(ctrl.tr('barcodeNotFound'));
+              final product = ctrl.findProductByBarcode(code);
+              if (product != null) {
+                ctrl.addToPosCart(product);
+                setModalState(() {
+                  lastScanned = product;
+                  unknownBarcode = null;
+                  scanCount++;
+                  barcodeCtrl.clear();
+                });
+              } else {
+                setModalState(() {
+                  lastScanned = null;
+                });
+                ctrl.showToast(ctrl.tr('barcodeNotFound'));
+              }
             }
           }
 
           return Directionality(
             textDirection: ctrl.isRtl ? TextDirection.rtl : TextDirection.ltr,
             child: Padding(
-              padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+              padding:
+                  EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
               child: Container(
-                height: MediaQuery.of(ctx).size.height * 0.78,
+                height: MediaQuery.of(ctx).size.height * 0.86,
                 decoration: BoxDecoration(
                   color: isDark ? const Color(0xFF0F172A) : Colors.white,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(24)),
                 ),
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -3825,11 +3993,12 @@ class ErpModals {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                            color: const Color(0xFFF59E0B)
+                                .withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Icon(Icons.qr_code_scanner_rounded,
-                              size: 24, color: Color(0xFFF59E0B)),
+                              size: 22, color: Color(0xFFF59E0B)),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
@@ -3837,30 +4006,50 @@ class ErpModals {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                ctrl.tr('barcodeScannerTitle'),
-                                style: _txt(ctrl, size: 14, weight: FontWeight.bold),
+                                stockInMode
+                                    ? (ctrl.currentLang == 'ur'
+                                        ? 'سٹاک ان بارکوڈ اسکینر'
+                                        : 'Stock-In Barcode Scanner')
+                                    : ctrl.tr('barcodeScannerTitle'),
+                                style: _txt(ctrl,
+                                    size: 14, weight: FontWeight.bold),
                               ),
                               Text(
-                                ctrl.currentLang == 'ur'
-                                    ? 'بارکوڈ گن سے اسکین کریں یا کوڈ درج کریں'
-                                    : 'Scan with barcode gun or type code',
-                                style: _txt(ctrl, size: 10.5, color: Colors.grey),
+                                stockInMode
+                                    ? (ctrl.currentLang == 'ur'
+                                        ? 'کین اسکین کریں، خودکار کیٹیگری اور رنگ میں سٹاک جمع ہوگا'
+                                        : 'Scan cans to add stock by Series, Category & Shade')
+                                    : (ctrl.currentLang == 'ur'
+                                        ? 'کیمرہ یا بارکوڈ گن سے اسکین کریں'
+                                        : 'Scan with camera, barcode gun, or type code'),
+                                style: _txt(ctrl,
+                                    size: 10.5, color: Colors.grey),
                               ),
                             ],
                           ),
                         ),
                         if (scanCount > 0)
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            margin: const EdgeInsets.only(right: 6),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            margin: const EdgeInsets.only(right: 4),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                              color: const Color(0xFF10B981)
+                                  .withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: const Color(0xFF10B981)),
+                              border:
+                                  Border.all(color: const Color(0xFF10B981)),
                             ),
                             child: Text(
-                              ctrl.currentLang == 'ur' ? '$scanCount آئٹم شامل' : '$scanCount scanned',
-                              style: const TextStyle(fontSize: 10, color: Color(0xFF10B981), fontWeight: FontWeight.bold),
+                              stockInMode
+                                  ? '+$scanCount Stock'
+                                  : (ctrl.currentLang == 'ur'
+                                      ? '$scanCount آئٹم شامل'
+                                      : '$scanCount scanned'),
+                              style: const TextStyle(
+                                  fontSize: 10,
+                                  color: Color(0xFF10B981),
+                                  fontWeight: FontWeight.bold),
                             ),
                           ),
                         IconButton(
@@ -3869,72 +4058,369 @@ class ErpModals {
                         ),
                       ],
                     ),
-                    const Divider(height: 18),
+                    const SizedBox(height: 8),
 
-                    // Scrollable content body to prevent keyboard bottom overflow
+                    // Mode Switcher: POS Billing vs Stock-In
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: cardBg,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                            color: isDark ? Colors.white12 : Colors.black12),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => setModalState(() {
+                                stockInMode = false;
+                                unknownBarcode = null;
+                              }),
+                              child: Container(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: !stockInMode
+                                      ? ctrl.palette.primary
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(9),
+                                ),
+                                child: Text(
+                                  ctrl.currentLang == 'ur'
+                                      ? 'POS بلنگ'
+                                      : 'POS Billing',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: !stockInMode
+                                        ? Colors.white
+                                        : Colors.grey,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => setModalState(() {
+                                stockInMode = true;
+                              }),
+                              child: Container(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: stockInMode
+                                      ? const Color(0xFF10B981)
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(9),
+                                ),
+                                child: Text(
+                                  ctrl.currentLang == 'ur'
+                                      ? 'سٹاک ان (Stock-In)'
+                                      : 'Stock-In (Add Qty)',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: stockInMode
+                                        ? Colors.white
+                                        : Colors.grey,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Scrollable content body
                     Expanded(
                       child: SingleChildScrollView(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            // Barcode Laser Simulation Box
-                            Container(
-                              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF090D16),
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: const Color(0xFF334155)),
-                              ),
-                              child: Column(
-                                children: [
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
+                            // Live Camera or Laser Box
+                            if (useCamera && scannerCtrl != null)
+                              Container(
+                                height: 180,
+                                decoration: BoxDecoration(
+                                  color: Colors.black,
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                      color: stockInMode
+                                          ? const Color(0xFF10B981)
+                                          : const Color(0xFFF59E0B),
+                                      width: 2),
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Stack(
                                     children: [
-                                      const Icon(Icons.barcode_reader, color: Color(0xFFF59E0B), size: 26),
-                                      const SizedBox(width: 8),
-                                      Flexible(
-                                        child: FittedBox(
-                                          fit: BoxFit.scaleDown,
-                                          child: Text(
-                                            '||| | | |||| || | || ||| || |||',
-                                            style: TextStyle(
-                                              fontFamily: 'monospace',
-                                              fontSize: 16,
-                                              letterSpacing: 2,
-                                              color: Colors.white.withValues(alpha: 0.85),
+                                      MobileScanner(
+                                        controller: scannerCtrl,
+                                        onDetect: (capture) {
+                                          for (final b in capture.barcodes) {
+                                            final raw =
+                                                b.rawValue?.trim() ?? '';
+                                            if (raw.isEmpty) continue;
+                                            final now = DateTime.now();
+                                            if (raw == lastDetectedCode &&
+                                                now
+                                                        .difference(
+                                                            lastDetectedAt)
+                                                        .inMilliseconds <
+                                                    1400) {
+                                              continue;
+                                            }
+                                            lastDetectedCode = raw;
+                                            lastDetectedAt = now;
+                                            handleScan(raw);
+                                            break;
+                                          }
+                                        },
+                                      ),
+                                      Positioned(
+                                        top: 8,
+                                        right: 8,
+                                        child: Row(
+                                          children: [
+                                            CircleAvatar(
+                                              radius: 16,
+                                              backgroundColor: Colors.black54,
+                                              child: IconButton(
+                                                padding: EdgeInsets.zero,
+                                                icon: Icon(
+                                                  torchOn
+                                                      ? Icons.flash_on_rounded
+                                                      : Icons.flash_off_rounded,
+                                                  color: Colors.amber,
+                                                  size: 18,
+                                                ),
+                                                onPressed: () {
+                                                  scannerCtrl.toggleTorch();
+                                                  setModalState(() =>
+                                                      torchOn = !torchOn);
+                                                },
+                                              ),
                                             ),
+                                            const SizedBox(width: 6),
+                                            CircleAvatar(
+                                              radius: 16,
+                                              backgroundColor: Colors.black54,
+                                              child: IconButton(
+                                                padding: EdgeInsets.zero,
+                                                icon: const Icon(
+                                                  Icons.keyboard_rounded,
+                                                  color: Colors.white,
+                                                  size: 18,
+                                                ),
+                                                onPressed: () => setModalState(
+                                                    () => useCamera = false),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Align(
+                                        alignment: Alignment.bottomCenter,
+                                        child: Container(
+                                          width: double.infinity,
+                                          color: Colors.black54,
+                                          padding: const EdgeInsets.symmetric(
+                                              vertical: 4),
+                                          child: Text(
+                                            stockInMode
+                                                ? 'Point camera at paint can barcode (+$stockInQty)'
+                                                : 'Point camera at barcode to add to POS bill',
+                                            textAlign: TextAlign.center,
+                                            style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 10.5),
                                           ),
                                         ),
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 8),
-                                  Container(
-                                    height: 2,
-                                    width: 200,
-                                    decoration: const BoxDecoration(
-                                      color: Colors.redAccent,
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.red,
-                                          blurRadius: 6,
-                                          spreadRadius: 1,
+                                ),
+                              )
+                            else
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 12, horizontal: 16),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF090D16),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                      color: const Color(0xFF334155)),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        const Icon(Icons.barcode_reader,
+                                            color: Color(0xFFF59E0B), size: 24),
+                                        const SizedBox(width: 8),
+                                        Flexible(
+                                          child: FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            child: Text(
+                                              '||| | | |||| || | || ||| || |||',
+                                              style: TextStyle(
+                                                fontFamily: 'monospace',
+                                                fontSize: 15,
+                                                letterSpacing: 2,
+                                                color: Colors.white
+                                                    .withValues(alpha: 0.85),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        if (scannerCtrl != null) ...[
+                                          const SizedBox(width: 8),
+                                          TextButton.icon(
+                                            onPressed: () => setModalState(
+                                                () => useCamera = true),
+                                            icon: const Icon(
+                                                Icons.camera_alt_rounded,
+                                                size: 16,
+                                                color: Colors.amberAccent),
+                                            label: const Text('Camera',
+                                                style: TextStyle(
+                                                    color: Colors.amberAccent,
+                                                    fontSize: 11)),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      ctrl.currentLang == 'ur'
+                                          ? 'اسکینر تیار ہے — بارکوڈ گن یا ٹائپ سے اسکین کریں'
+                                          : 'Scanner Ready — Use USB barcode gun or type below',
+                                      style: const TextStyle(
+                                          fontSize: 10.5,
+                                          color: Colors.amberAccent),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            const SizedBox(height: 10),
+
+                            // Stock-In Qty Stepper
+                            if (stockInMode) ...[
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF10B981)
+                                      .withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                      color: const Color(0xFF10B981)
+                                          .withValues(alpha: 0.3)),
+                                ),
+                                child: Wrap(
+                                  alignment: WrapAlignment.spaceBetween,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  spacing: 8,
+                                  runSpacing: 4,
+                                  children: [
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          ctrl.currentLang == 'ur'
+                                              ? 'تعداد:'
+                                              : 'Qty:',
+                                          style: _txt(ctrl,
+                                              size: 11.5,
+                                              weight: FontWeight.bold),
+                                        ),
+                                        IconButton(
+                                          visualDensity: VisualDensity.compact,
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(
+                                              minWidth: 32, minHeight: 32),
+                                          onPressed: stockInQty > 1
+                                              ? () => setModalState(
+                                                  () => stockInQty--)
+                                              : null,
+                                          icon: const Icon(
+                                              Icons.remove_circle_outline,
+                                              size: 20),
+                                        ),
+                                        Text('$stockInQty',
+                                            style: const TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.bold)),
+                                        IconButton(
+                                          visualDensity: VisualDensity.compact,
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(
+                                              minWidth: 32, minHeight: 32),
+                                          onPressed: () =>
+                                              setModalState(() => stockInQty++),
+                                          icon: const Icon(
+                                              Icons.add_circle_outline,
+                                              size: 20),
                                         ),
                                       ],
                                     ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    ctrl.currentLang == 'ur'
-                                        ? 'اسکینر تیار ہے — بارکوڈ گن سے اسکین کریں'
-                                        : 'Scanner Ready — Aim barcode gun at can',
-                                    style: const TextStyle(fontSize: 10.5, color: Colors.amberAccent),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ],
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        for (final q in const [1, 4, 8, 12])
+                                          Padding(
+                                            padding:
+                                                const EdgeInsets.only(left: 4),
+                                            child: InkWell(
+                                              onTap: () => setModalState(
+                                                  () => stockInQty = q),
+                                              child: Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 7,
+                                                        vertical: 3),
+                                                decoration: BoxDecoration(
+                                                  color: stockInQty == q
+                                                      ? const Color(0xFF10B981)
+                                                      : cardBg,
+                                                  borderRadius:
+                                                      BorderRadius.circular(6),
+                                                  border: Border.all(
+                                                      color: Colors.grey
+                                                          .withValues(
+                                                              alpha: 0.3)),
+                                                ),
+                                                child: Text(
+                                                  'x$q',
+                                                  style: TextStyle(
+                                                    fontSize: 10.5,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: stockInQty == q
+                                                        ? Colors.white
+                                                        : (isDark
+                                                            ? Colors.white70
+                                                            : Colors.black87),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 14),
+                              const SizedBox(height: 10),
+                            ],
 
                             // Manual / Gun input field
                             Row(
@@ -3942,56 +4428,427 @@ class ErpModals {
                                 Expanded(
                                   child: TextField(
                                     controller: barcodeCtrl,
-                                    autofocus: true,
+                                    autofocus: !useCamera,
                                     textInputAction: TextInputAction.search,
                                     onSubmitted: handleScan,
                                     style: TextStyle(
                                       fontSize: 13,
-                                      color: isDark ? Colors.white : Colors.black87,
+                                      color: isDark
+                                          ? Colors.white
+                                          : Colors.black87,
                                     ),
                                     decoration: InputDecoration(
                                       filled: true,
                                       fillColor: cardBg,
-                                      prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                                      prefixIcon: const Icon(
+                                          Icons.search_rounded,
+                                          size: 20),
                                       hintText: ctrl.tr('barcodeSearchPh'),
-                                      hintStyle: const TextStyle(fontSize: 11.5, color: Colors.grey),
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                      hintStyle: const TextStyle(
+                                          fontSize: 11.5, color: Colors.grey),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 12, vertical: 10),
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(10),
-                                        borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.black26),
+                                        borderSide: BorderSide(
+                                            color: isDark
+                                                ? Colors.white24
+                                                : Colors.black26),
                                       ),
                                       suffixIcon: IconButton(
-                                        icon: const Icon(Icons.arrow_forward_rounded, size: 20),
-                                        onPressed: () => handleScan(barcodeCtrl.text),
+                                        icon: const Icon(
+                                            Icons.arrow_forward_rounded,
+                                            size: 20),
+                                        onPressed: () =>
+                                            handleScan(barcodeCtrl.text),
                                       ),
                                     ),
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 8),
 
                             // Quick-Test Barcode Chips
                             Wrap(
                               spacing: 6,
                               runSpacing: 4,
                               children: [
-                                _testBarcodeChip(ctrl, 'GLD-IE-G', () => handleScan('GLD-IE-G')),
-                                _testBarcodeChip(ctrl, '896400010001', () => handleScan('896400010001')),
-                                _testBarcodeChip(ctrl, 'CR-RED-G', () => handleScan('CR-RED-G')),
-                                _testBarcodeChip(ctrl, 'BB-2K-W-G', () => handleScan('BB-2K-W-G')),
+                                _testBarcodeChip(ctrl, 'GLD-IE-G',
+                                    () => handleScan('GLD-IE-G')),
+                                _testBarcodeChip(ctrl, '896400010001',
+                                    () => handleScan('896400010001')),
+                                _testBarcodeChip(ctrl, 'CR-RED-G',
+                                    () => handleScan('CR-RED-G')),
+                                _testBarcodeChip(ctrl, 'BB-2K-W-G',
+                                    () => handleScan('BB-2K-W-G')),
                               ],
                             ),
                             const SizedBox(height: 10),
 
-                            // Last Scanned Item Preview Card
-                            if (lastScanned != null)
+                            // Unknown Barcode -> Link to Series / Category / Shade Card Colour
+                            if (stockInMode && unknownBarcode != null)
                               Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                                  color: const Color(0xFFF59E0B)
+                                      .withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                      color: const Color(0xFFF59E0B)
+                                          .withValues(alpha: 0.5)),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                            Icons.new_releases_rounded,
+                                            color: Color(0xFFF59E0B),
+                                            size: 18),
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: Text(
+                                            'New Barcode: $unknownBarcode',
+                                            style: _txt(ctrl,
+                                                size: 12.5,
+                                                weight: FontWeight.bold),
+                                          ),
+                                        ),
+                                        TextButton(
+                                          onPressed: () => setModalState(() =>
+                                              linkExistingMode =
+                                                  !linkExistingMode),
+                                          child: Text(
+                                            linkExistingMode
+                                                ? 'Create New Shade'
+                                                : 'Link Existing',
+                                            style: const TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.bold),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 6),
+                                    if (linkExistingMode &&
+                                        ctrl.inventory.isNotEmpty) ...[
+                                      DropdownButtonFormField<int>(
+                                        initialValue: selectedExistingId,
+                                        isExpanded: true,
+                                        decoration: InputDecoration(
+                                          labelText: 'Select Existing Product',
+                                          filled: true,
+                                          fillColor: cardBg,
+                                          contentPadding:
+                                              const EdgeInsets.symmetric(
+                                                  horizontal: 10, vertical: 8),
+                                          border: OutlineInputBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(10)),
+                                        ),
+                                        items: ctrl.inventory
+                                            .map((p) => DropdownMenuItem<int>(
+                                                  value: p.id,
+                                                  child: Text(
+                                                    '${p.getName(ctrl.currentLang)} (${p.getSize(ctrl.currentLang)})',
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    style: const TextStyle(
+                                                        fontSize: 12),
+                                                  ),
+                                                ))
+                                            .toList(),
+                                        onChanged: (v) => setModalState(
+                                            () => selectedExistingId = v),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      ElevatedButton.icon(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor:
+                                              const Color(0xFF10B981),
+                                          foregroundColor: Colors.white,
+                                        ),
+                                        onPressed: selectedExistingId == null
+                                            ? null
+                                            : () {
+                                                final linked = ctrl
+                                                    .linkBarcodeAndAddStock(
+                                                  barcode: unknownBarcode!,
+                                                  existingProductId:
+                                                      selectedExistingId,
+                                                  qty: stockInQty,
+                                                );
+                                                setModalState(() {
+                                                  lastScanned = linked;
+                                                  unknownBarcode = null;
+                                                  scanCount += stockInQty;
+                                                });
+                                              },
+                                        icon: const Icon(Icons.link_rounded,
+                                            size: 18),
+                                        label: Text(
+                                            'Link Barcode & +$stockInQty Stock'),
+                                      ),
+                                    ] else ...[
+                                      // Series + Category
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child:
+                                                DropdownButtonFormField<String>(
+                                              initialValue: selectedSeries,
+                                              isExpanded: true,
+                                              decoration: InputDecoration(
+                                                labelText: 'Series',
+                                                filled: true,
+                                                fillColor: cardBg,
+                                                contentPadding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 10,
+                                                        vertical: 8),
+                                                border: OutlineInputBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            10)),
+                                              ),
+                                              items: GobisShadeCards.seriesList
+                                                  .map((s) => DropdownMenuItem(
+                                                      value: s,
+                                                      child: Text(s,
+                                                          style:
+                                                              const TextStyle(
+                                                                  fontSize:
+                                                                      12))))
+                                                  .toList(),
+                                              onChanged: (v) {
+                                                if (v == null) return;
+                                                setModalState(() {
+                                                  selectedSeries = v;
+                                                  final cats = GobisShadeCards
+                                                      .categoriesForSeries(v);
+                                                  selectedCategory = cats.first;
+                                                  availableShades =
+                                                      GobisShadeCards.shadesFor(
+                                                          selectedSeries,
+                                                          selectedCategory);
+                                                  selectedShade =
+                                                      availableShades.isNotEmpty
+                                                          ? availableShades
+                                                              .first
+                                                          : null;
+                                                });
+                                              },
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            flex: 2,
+                                            child:
+                                                DropdownButtonFormField<String>(
+                                              initialValue: selectedCategory,
+                                              isExpanded: true,
+                                              decoration: InputDecoration(
+                                                labelText: 'Category',
+                                                filled: true,
+                                                fillColor: cardBg,
+                                                contentPadding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 10,
+                                                        vertical: 8),
+                                                border: OutlineInputBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            10)),
+                                              ),
+                                              items: GobisShadeCards
+                                                  .categoriesForSeries(
+                                                      selectedSeries)
+                                                  .map((c) => DropdownMenuItem(
+                                                      value: c,
+                                                      child: Text(c,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                          style:
+                                                              const TextStyle(
+                                                                  fontSize:
+                                                                      12))))
+                                                  .toList(),
+                                              onChanged: (v) {
+                                                if (v == null) return;
+                                                setModalState(() {
+                                                  selectedCategory = v;
+                                                  availableShades =
+                                                      GobisShadeCards.shadesFor(
+                                                          selectedSeries,
+                                                          selectedCategory);
+                                                  selectedShade =
+                                                      availableShades.isNotEmpty
+                                                          ? availableShades
+                                                              .first
+                                                          : null;
+                                                });
+                                              },
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+
+                                      // Shade Card Colour Selector
+                                      DropdownButtonFormField<ShadeCardEntry>(
+                                        initialValue: selectedShade,
+                                        isExpanded: true,
+                                        decoration: InputDecoration(
+                                          labelText:
+                                              'Shade Card Colour & Number',
+                                          filled: true,
+                                          fillColor: cardBg,
+                                          contentPadding:
+                                              const EdgeInsets.symmetric(
+                                                  horizontal: 10, vertical: 8),
+                                          border: OutlineInputBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(10)),
+                                        ),
+                                        items: availableShades
+                                            .map((sh) => DropdownMenuItem(
+                                                  value: sh,
+                                                  child: Row(
+                                                    children: [
+                                                      Container(
+                                                        width: 16,
+                                                        height: 16,
+                                                        decoration:
+                                                            BoxDecoration(
+                                                          color: _parseHexColor(
+                                                              sh.colorHex),
+                                                          shape:
+                                                              BoxShape.circle,
+                                                          border: Border.all(
+                                                              color:
+                                                                  Colors.grey),
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 8),
+                                                      Expanded(
+                                                        child: Text(
+                                                          sh.displayLabel,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                          style:
+                                                              const TextStyle(
+                                                                  fontSize: 12),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ))
+                                            .toList(),
+                                        onChanged: (v) => setModalState(
+                                            () => selectedShade = v),
+                                      ),
+                                      const SizedBox(height: 8),
+
+                                      // Size chips
+                                      Wrap(
+                                        spacing: 6,
+                                        runSpacing: 4,
+                                        children: sizeOptions
+                                            .map((sz) => ChoiceChip(
+                                                  label: Text(sz,
+                                                      style: const TextStyle(
+                                                          fontSize: 10.5)),
+                                                  selected: selectedSize == sz,
+                                                  onSelected: (_) =>
+                                                      setModalState(() =>
+                                                          selectedSize = sz),
+                                                ))
+                                            .toList(),
+                                      ),
+                                      const SizedBox(height: 8),
+
+                                      // Cost & Sale Price
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: _inputField(
+                                                ctrl, costCtrl, 'Cost Price',
+                                                isNumber: true),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: _inputField(
+                                                ctrl, priceCtrl, 'Sale Price',
+                                                isNumber: true),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 10),
+                                      ElevatedButton.icon(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor:
+                                              const Color(0xFF10B981),
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(
+                                              vertical: 12),
+                                        ),
+                                        onPressed: () {
+                                          final catCode = GobisShadeCards
+                                              .catCodeForCategory(
+                                                  selectedCategory);
+                                          final created =
+                                              ctrl.linkBarcodeAndAddStock(
+                                            barcode: unknownBarcode!,
+                                            brand: 'Gobis',
+                                            series: selectedSeries,
+                                            cat: catCode,
+                                            categoryLabel: selectedCategory,
+                                            shadeCode:
+                                                selectedShade?.shadeCode ?? '',
+                                            shadeName:
+                                                selectedShade?.shadeName ?? '',
+                                            colorHex:
+                                                selectedShade?.colorHex ??
+                                                    '#93C5FD',
+                                            sizeLabel: selectedSize,
+                                            costPrice: double.tryParse(
+                                                    costCtrl.text) ??
+                                                0,
+                                            salePrice: double.tryParse(
+                                                    priceCtrl.text) ??
+                                                0,
+                                            qty: stockInQty,
+                                          );
+                                          setModalState(() {
+                                            lastScanned = created;
+                                            unknownBarcode = null;
+                                            scanCount += stockInQty;
+                                          });
+                                        },
+                                        icon: const Icon(
+                                            Icons.save_alt_rounded,
+                                            size: 18),
+                                        label: Text(
+                                            'Save Shade & +$stockInQty Stock'),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              )
+                            else if (lastScanned != null)
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF10B981)
+                                      .withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+                                  border: Border.all(
+                                      color: const Color(0xFF10B981)
+                                          .withValues(alpha: 0.4)),
                                 ),
                                 child: Row(
                                   children: [
@@ -3999,29 +4856,47 @@ class ErpModals {
                                       width: 44,
                                       height: 44,
                                       decoration: BoxDecoration(
-                                        color: ctrl.palette.primary.withValues(alpha: 0.15),
+                                        color: _parseHexColor(
+                                            lastScanned!.colorHex),
                                         borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                            color: const Color(0xFF10B981),
+                                            width: 2),
                                       ),
-                                      child: const Icon(Icons.check_circle_rounded,
-                                          color: Color(0xFF10B981), size: 26),
+                                      child: const Icon(
+                                          Icons.check_circle_rounded,
+                                          color: Color(0xFF10B981),
+                                          size: 24),
                                     ),
                                     const SizedBox(width: 10),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            lastScanned!.getName(ctrl.currentLang),
-                                            style: _txt(ctrl, size: 12, weight: FontWeight.bold),
+                                            lastScanned!
+                                                .getName(ctrl.currentLang),
+                                            style: _txt(ctrl,
+                                                size: 12,
+                                                weight: FontWeight.bold),
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                           ),
                                           Text(
-                                            '${lastScanned!.series} • ${lastScanned!.getSize(ctrl.currentLang)}',
-                                            style: const TextStyle(fontSize: 10.5, color: Colors.grey),
+                                            '${lastScanned!.series} • ${lastScanned!.cat}'
+                                            '${lastScanned!.shadeCode.isNotEmpty ? " • #${lastScanned!.shadeCode} ${lastScanned!.shadeName}" : ""}'
+                                            ' • ${lastScanned!.getSize(ctrl.currentLang)}',
+                                            style: const TextStyle(
+                                                fontSize: 10.5,
+                                                color: Colors.grey),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
                                           Text(
-                                            '${ctrl.formatMoney(lastScanned!.salePrice)} (Cart: ${ctrl.posCart.where((x) => x.prodId == lastScanned!.id).fold<int>(0, (s, it) => s + it.qty)})',
+                                            stockInMode
+                                                ? 'Updated Stock: ${lastScanned!.stock} units'
+                                                : '${ctrl.formatMoney(lastScanned!.salePrice)} (Cart: ${ctrl.posCart.where((x) => x.prodId == lastScanned!.id).fold<int>(0, (s, it) => s + it.qty)})',
                                             style: const TextStyle(
                                               fontSize: 11,
                                               fontWeight: FontWeight.bold,
@@ -4036,18 +4911,27 @@ class ErpModals {
                               )
                             else
                               Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 24),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 20),
                                 child: Center(
                                   child: Column(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(Icons.barcode_reader, size: 40, color: Colors.grey.withValues(alpha: 0.4)),
+                                      Icon(Icons.barcode_reader,
+                                          size: 38,
+                                          color: Colors.grey
+                                              .withValues(alpha: 0.4)),
                                       const SizedBox(height: 8),
                                       Text(
-                                        ctrl.currentLang == 'ur'
-                                            ? 'ڈبے کا بارکوڈ اسکین کریں، خودکار کارٹ میں شامل ہوگا'
-                                            : 'Scan paint can barcode to add to cart automatically',
-                                        style: _txt(ctrl, size: 11, color: Colors.grey),
+                                        stockInMode
+                                            ? (ctrl.currentLang == 'ur'
+                                                ? 'پینٹ کین کا بارکوڈ اسکین کریں — خودکار کیٹیگری اور شیڈ میں سٹاک جمع ہوگا'
+                                                : 'Scan a paint can barcode — stock adds automatically by Category & Shade')
+                                            : (ctrl.currentLang == 'ur'
+                                                ? 'ڈبے کا بارکوڈ اسکین کریں، خودکار کارٹ میں شامل ہوگا'
+                                                : 'Scan paint can barcode to add to cart automatically'),
+                                        style: _txt(ctrl,
+                                            size: 11, color: Colors.grey),
                                         textAlign: TextAlign.center,
                                       ),
                                     ],
@@ -4066,19 +4950,35 @@ class ErpModals {
                         Expanded(
                           child: ElevatedButton.icon(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: ctrl.palette.primary,
+                              backgroundColor: stockInMode
+                                  ? const Color(0xFF10B981)
+                                  : ctrl.palette.primary,
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10)),
                             ),
                             onPressed: () {
                               Navigator.pop(ctx);
-                              openPosCartModal(context, ctrl);
+                              if (!stockInMode) {
+                                openPosCartModal(context, ctrl);
+                              }
                             },
-                            icon: const Icon(Icons.shopping_cart_checkout_rounded, size: 18),
+                            icon: Icon(
+                                stockInMode
+                                    ? Icons.check_rounded
+                                    : Icons.shopping_cart_checkout_rounded,
+                                size: 18),
                             label: Text(
-                              '${ctrl.tr('btnPosCart')} (${ctrl.posCart.length}) - ${ctrl.formatMoney(ctrl.cartTotal)}',
-                              style: _txt(ctrl, size: 12, weight: FontWeight.bold, color: Colors.white),
+                              stockInMode
+                                  ? (ctrl.currentLang == 'ur'
+                                      ? 'مکمل ($scanCount شامل)'
+                                      : 'Done Stock-In ($scanCount Added)')
+                                  : '${ctrl.tr('btnPosCart')} (${ctrl.posCart.length}) - ${ctrl.formatMoney(ctrl.cartTotal)}',
+                              style: _txt(ctrl,
+                                  size: 12,
+                                  weight: FontWeight.bold,
+                                  color: Colors.white),
                             ),
                           ),
                         ),
@@ -4091,7 +4991,9 @@ class ErpModals {
           );
         },
       ),
-    );
+    ).whenComplete(() {
+      scannerCtrl?.dispose();
+    });
   }
 
   static Widget _testBarcodeChip(ErpController ctrl, String code, VoidCallback onTap) {
