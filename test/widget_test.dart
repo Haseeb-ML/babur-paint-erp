@@ -342,7 +342,7 @@ void main() {
     expect(inv!.mode, 'Partial');
     expect(inv.paidAmount, halfPaid);
     expect(inv.dueAmount, expectedDue);
-    expect(inv.paymentStatusLabel, 'PARTIAL');
+    expect(inv.paymentStatusLabel, 'DUE / CREDIT');
 
     // Verify customer khata updated with exact remaining due
     final cust = ctrl.customers.firstWhere((c) => c.phone == '03001234567');

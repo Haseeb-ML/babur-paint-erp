@@ -356,10 +356,8 @@ class _AllInvoicesScreenState extends State<AllInvoicesScreen> {
     bool isUrdu,
   ) {
     final isPaid = inv.dueAmount <= 0.01;
-    final isPartial = !isPaid && inv.paidAmount > 0.01;
-    final badgeCol = isPaid
-        ? const Color(0xFF10B981)
-        : (isPartial ? const Color(0xFFF59E0B) : const Color(0xFFEF4444));
+    final badgeCol =
+        isPaid ? const Color(0xFF10B981) : const Color(0xFFEF4444);
 
     return Container(
       decoration: BoxDecoration(
@@ -408,9 +406,7 @@ class _AllInvoicesScreenState extends State<AllInvoicesScreen> {
                 child: Text(
                   isPaid
                       ? (isUrdu ? 'نقد (PAID)' : 'PAID')
-                      : (isPartial
-                          ? (isUrdu ? 'جزوی (PARTIAL)' : 'PARTIAL')
-                          : (isUrdu ? 'بقایا (DUE)' : 'DUE')),
+                      : (isUrdu ? 'بقایا / کریڈٹ' : 'DUE / CREDIT'),
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,

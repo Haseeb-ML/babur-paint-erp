@@ -3325,8 +3325,8 @@ class ErpModals {
     // Build plain text invoice for clipboard / WhatsApp
     final buffer = StringBuffer();
     buffer.writeln('================================');
-    buffer.writeln(ctrl.shopName);
-    buffer.writeln('بابر اینڈ برادرز ہارڈویئر اینڈ پینٹ سٹور');
+    buffer.writeln('Babur & Brothers');
+    buffer.writeln('بابر اینڈ برادرز');
     buffer.writeln('فون: ${ctrl.shopPhone}');
     buffer.writeln('================================');
     buffer.writeln('بل نمبر / Invoice: ${inv.invoiceNo}');
@@ -3434,13 +3434,13 @@ class ErpModals {
                               child: Column(
                                 children: [
                                   Text(
-                                    ctrl.shopName,
-                                    style: _txt(ctrl, size: 13, weight: FontWeight.w900),
+                                    'Babur & Brothers',
+                                    style: _txt(ctrl, size: 14, weight: FontWeight.w900),
                                     textAlign: TextAlign.center,
                                   ),
                                   Text(
-                                    'بابر اینڈ برادرز ہارڈویئر اینڈ پینٹ سٹور',
-                                    style: _txt(ctrl, size: 11.5, weight: FontWeight.bold, color: Colors.grey),
+                                    'بابر اینڈ برادرز',
+                                    style: _txt(ctrl, size: 12, weight: FontWeight.bold, color: Colors.grey),
                                     textAlign: TextAlign.center,
                                   ),
                                   Text(

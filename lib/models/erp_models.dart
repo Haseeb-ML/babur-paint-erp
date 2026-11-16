@@ -734,7 +734,6 @@ class InvoiceRecord {
 
   String get paymentStatusLabel {
     if (dueAmount <= 0.01) return 'PAID';
-    if (paidAmount > 0.01) return 'PARTIAL';
     return 'DUE / CREDIT';
   }
 
