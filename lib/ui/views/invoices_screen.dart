@@ -131,9 +131,9 @@ class _AllInvoicesScreenState extends State<AllInvoicesScreen> {
                       const SizedBox(width: 8),
                       _kpiItem(
                         ctrl,
-                        label: isUrdu ? 'ادھار بلز' : 'Udhar Total',
+                        label: isUrdu ? 'کریڈٹ بلز' : 'Credit Total',
                         val: ctrl.formatMoney(udharBilled),
-                        sub: '${allInvoices.where((i) => i.mode != 'Cash').length} Udhar',
+                        sub: '${allInvoices.where((i) => i.mode != 'Cash').length} Credit',
                         col: const Color(0xFFF59E0B),
                         isDark: isDark,
                       ),
@@ -209,8 +209,8 @@ class _AllInvoicesScreenState extends State<AllInvoicesScreen> {
                           const SizedBox(width: 8),
                           _filterChip(
                             label: isUrdu
-                                ? 'ادھار (${allInvoices.where((i) => i.mode != 'Cash').length})'
-                                : 'Udhar (${allInvoices.where((i) => i.mode != 'Cash').length})',
+                                ? 'کریڈٹ (${allInvoices.where((i) => i.mode != 'Cash').length})'
+                                : 'Credit (${allInvoices.where((i) => i.mode != 'Cash').length})',
                             key: 'udhar',
                             isDark: isDark,
                             primaryCol: const Color(0xFFF59E0B),
