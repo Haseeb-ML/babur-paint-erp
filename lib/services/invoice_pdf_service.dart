@@ -151,22 +151,14 @@ class InvoicePdfService {
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
                         pw.Text(
-                          'BABUR & BROTHERS HARDWARE & PAINT STORE',
+                          'BABUR & BROTHERS',
                           style: pw.TextStyle(
-                            fontSize: 13,
+                            fontSize: 15,
                             fontWeight: pw.FontWeight.bold,
                             color: primaryColor,
                           ),
                         ),
-                        pw.SizedBox(height: 2),
-                        pw.Text(
-                          "Official Authorized Dealer: Gobi's Paints Pakistan",
-                          style: pw.TextStyle(
-                            fontSize: 9,
-                            color: PdfColors.grey700,
-                            fontWeight: pw.FontWeight.bold,
-                          ),
-                        ),
+                        pw.SizedBox(height: 3),
                         pw.Text(
                           'Bhera Road, Nawaz Plaza, Malikwal (Ph: $safePhone)',
                           style: const pw.TextStyle(
@@ -180,13 +172,17 @@ class InvoicePdfService {
                   pw.Container(
                     padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: pw.BoxDecoration(
-                      color: inv.mode == 'Cash' ? secondaryColor : PdfColor.fromHex('#F59E0B'),
+                      color: inv.dueAmount <= 0.01
+                          ? secondaryColor
+                          : (inv.paidAmount > 0.01
+                              ? PdfColor.fromHex('#F59E0B')
+                              : PdfColor.fromHex('#DC2626')),
                       borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
                     ),
                     child: pw.Column(
                       children: [
                         pw.Text(
-                          'TAX INVOICE',
+                          'INVOICE',
                           style: pw.TextStyle(
                             fontSize: 9.5,
                             fontWeight: pw.FontWeight.bold,
@@ -194,7 +190,7 @@ class InvoicePdfService {
                           ),
                         ),
                         pw.Text(
-                          inv.mode.toUpperCase(),
+                          inv.paymentStatusLabel,
                           style: pw.TextStyle(
                             fontSize: 8,
                             fontWeight: pw.FontWeight.bold,
@@ -474,6 +470,52 @@ class InvoicePdfService {
                             ),
                           ],
                         ),
+                        if (inv.dueAmount > 0.01) ...[
+                          pw.SizedBox(height: 3),
+                          pw.Row(
+                            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                            children: [
+                              pw.Text(
+                                'Paid:',
+                                style: pw.TextStyle(
+                                  fontSize: 8.5,
+                                  color: secondaryColor,
+                                  fontWeight: pw.FontWeight.bold,
+                                ),
+                              ),
+                              pw.Text(
+                                _formatPdfMoney(inv.paidAmount),
+                                style: pw.TextStyle(
+                                  fontSize: 8.5,
+                                  color: secondaryColor,
+                                  fontWeight: pw.FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          pw.SizedBox(height: 2),
+                          pw.Row(
+                            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                            children: [
+                              pw.Text(
+                                'Balance Due:',
+                                style: pw.TextStyle(
+                                  fontSize: 9,
+                                  color: PdfColors.redAccent,
+                                  fontWeight: pw.FontWeight.bold,
+                                ),
+                              ),
+                              pw.Text(
+                                _formatPdfMoney(inv.dueAmount),
+                                style: pw.TextStyle(
+                                  fontSize: 9.5,
+                                  color: PdfColors.redAccent,
+                                  fontWeight: pw.FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -541,7 +583,6 @@ class InvoicePdfService {
     final safeCustName = _safeCustomerName(inv.customerName);
     final safeInvNo = _clean(inv.invoiceNo);
     final safeDate = _clean(inv.dateStr);
-    final safeMode = _clean(inv.mode);
     final safePhone = _clean(ctrl.shopPhone);
 
     final safeHeight = (pageFormat.height.isFinite && pageFormat.height > 100)
@@ -570,18 +611,6 @@ class InvoicePdfService {
               ),
               pw.Center(
                 child: pw.Text(
-                  'HARDWARE & PAINT STORE',
-                  style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
-                ),
-              ),
-              pw.Center(
-                child: pw.Text(
-                  "Official Dealer: Gobi's Paints Pakistan",
-                  style: const pw.TextStyle(fontSize: 7.5),
-                ),
-              ),
-              pw.Center(
-                child: pw.Text(
                   'Bhera Road, Nawaz Plaza, Malikwal',
                   style: const pw.TextStyle(fontSize: 7),
                 ),
@@ -600,7 +629,7 @@ class InvoicePdfService {
                 children: [
                   pw.Text('Inv: $safeInvNo',
                       style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold)),
-                  pw.Text('Mode: $safeMode',
+                  pw.Text('Status: ${inv.paymentStatusLabel}',
                       style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold)),
                 ],
               ),
@@ -662,6 +691,26 @@ class InvoicePdfService {
                       style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
                 ],
               ),
+              if (inv.dueAmount > 0.01) ...[
+                pw.SizedBox(height: 2),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('Paid:', style: const pw.TextStyle(fontSize: 7.5)),
+                    pw.Text(_formatPdfMoney(inv.paidAmount),
+                        style: const pw.TextStyle(fontSize: 7.5)),
+                  ],
+                ),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('Balance Due:',
+                        style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                    pw.Text(_formatPdfMoney(inv.dueAmount),
+                        style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                  ],
+                ),
+              ],
               pw.Divider(height: 8, thickness: 0.5),
 
               // Footer Note

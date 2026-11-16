@@ -314,4 +314,58 @@ void main() {
     expect(find.text('Done Stock-In (1 Added)'), findsOneWidget);
     await tester.pump(const Duration(seconds: 3));
   });
+
+  testWidgets('Partial Payment, Running Credit & Clean Invoice PDF Test',
+      (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final ctrl = ErpController();
+    await ctrl.init();
+    ctrl.setLanguage('en');
+
+    // Add item to cart and do a partial payment checkout
+    final prod = ctrl.inventory.first;
+    ctrl.addToPosCart(prod);
+    ctrl.addToPosCart(prod);
+    final totalBill = ctrl.cartTotal;
+    final halfPaid = (totalBill / 2).roundToDouble();
+    final expectedDue = totalBill - halfPaid;
+
+    final inv = ctrl.completePosCheckout(
+      mode: 'Partial',
+      customerName: 'Ali Raza',
+      customerPhone: '03001234567',
+      painterId: null,
+      discount: 0,
+      paidAmount: halfPaid,
+    );
+    expect(inv, isNotNull);
+    expect(inv!.mode, 'Partial');
+    expect(inv.paidAmount, halfPaid);
+    expect(inv.dueAmount, expectedDue);
+    expect(inv.paymentStatusLabel, 'PARTIAL');
+
+    // Verify customer khata updated with exact remaining due
+    final cust = ctrl.customers.firstWhere((c) => c.phone == '03001234567');
+    expect(cust.totalGiven, totalBill);
+    expect(cust.totalPaid, halfPaid);
+    expect(cust.totalGiven - cust.totalPaid, expectedDue);
+
+    // Record subsequent payment on that invoice -> becomes PAID
+    ctrl.receiveInvoicePayment(inv.id, expectedDue);
+    expect(inv.dueAmount, 0);
+    expect(inv.mode, 'Cash');
+    expect(inv.paymentStatusLabel, 'PAID');
+    expect(cust.totalGiven - cust.totalPaid, 0);
+
+    // Verify A4 & Thermal PDFs generate cleanly
+    final pdfA4 = await InvoicePdfService.generateInvoicePdf(ctrl, inv);
+    expect(pdfA4.lengthInBytes, greaterThan(500));
+    final pdfRoll = await InvoicePdfService.generateInvoicePdf(
+      ctrl,
+      inv,
+      format: PdfPageFormat.roll80,
+    );
+    expect(pdfRoll.lengthInBytes, greaterThan(300));
+    await tester.pump(const Duration(seconds: 3));
+  });
 }

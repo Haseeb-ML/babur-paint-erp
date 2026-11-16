@@ -73,12 +73,10 @@ class _AllInvoicesScreenState extends State<AllInvoicesScreen> {
         // Financial totals
         final double totalBilled =
             allInvoices.fold(0.0, (s, it) => s + it.total);
-        final double cashBilled = allInvoices
-            .where((i) => i.mode == 'Cash')
-            .fold(0.0, (s, it) => s + it.total);
-        final double udharBilled = allInvoices
-            .where((i) => i.mode != 'Cash')
-            .fold(0.0, (s, it) => s + it.total);
+        final double cashBilled =
+            allInvoices.fold(0.0, (s, it) => s + it.paidAmount);
+        final double udharBilled =
+            allInvoices.fold(0.0, (s, it) => s + it.dueAmount);
 
         return Directionality(
           textDirection: ctrl.isRtl ? TextDirection.rtl : TextDirection.ltr,
@@ -357,8 +355,11 @@ class _AllInvoicesScreenState extends State<AllInvoicesScreen> {
     bool isDark,
     bool isUrdu,
   ) {
-    final isCash = inv.mode == 'Cash';
-    final badgeCol = isCash ? const Color(0xFF10B981) : const Color(0xFFF59E0B);
+    final isPaid = inv.dueAmount <= 0.01;
+    final isPartial = !isPaid && inv.paidAmount > 0.01;
+    final badgeCol = isPaid
+        ? const Color(0xFF10B981)
+        : (isPartial ? const Color(0xFFF59E0B) : const Color(0xFFEF4444));
 
     return Container(
       decoration: BoxDecoration(
@@ -405,9 +406,11 @@ class _AllInvoicesScreenState extends State<AllInvoicesScreen> {
                   border: Border.all(color: badgeCol.withValues(alpha: 0.3)),
                 ),
                 child: Text(
-                  isCash
-                      ? (isUrdu ? 'نقد بل' : 'Cash')
-                      : (isUrdu ? 'ادھار بل' : 'Udhar'),
+                  isPaid
+                      ? (isUrdu ? 'نقد (PAID)' : 'PAID')
+                      : (isPartial
+                          ? (isUrdu ? 'جزوی (PARTIAL)' : 'PARTIAL')
+                          : (isUrdu ? 'بقایا (DUE)' : 'DUE')),
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
@@ -484,7 +487,7 @@ class _AllInvoicesScreenState extends State<AllInvoicesScreen> {
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w900,
-                      color: isCash
+                      color: isPaid
                           ? const Color(0xFF10B981)
                           : const Color(0xFF1E3A8A),
                     ),
@@ -543,10 +546,95 @@ class _AllInvoicesScreenState extends State<AllInvoicesScreen> {
             ),
           ),
           const SizedBox(height: 10),
+          if (inv.dueAmount > 0.01) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                color: badgeCol.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: badgeCol.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Paid: ${ctrl.formatMoney(inv.paidAmount)}',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF10B981),
+                    ),
+                  ),
+                  Text(
+                    'Due: ${ctrl.formatMoney(inv.dueAmount)}',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFFEF4444),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
 
           // Actions Row
           Row(
             children: [
+              if (inv.dueAmount > 0.01) ...[
+                IconButton.filledTonal(
+                  tooltip: isUrdu ? 'بقایا وصول کریں' : 'Receive Payment',
+                  style: IconButton.styleFrom(
+                    backgroundColor: const Color(0xFF10B981).withValues(alpha: 0.15),
+                    foregroundColor: const Color(0xFF10B981),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () {
+                    final payCtrl = TextEditingController(
+                        text: inv.dueAmount.round().toString());
+                    showDialog(
+                      context: context,
+                      builder: (dCtx) => AlertDialog(
+                        title: Text('Receive Payment (${inv.invoiceNo})',
+                            style: _txt(ctrl, size: 14, weight: FontWeight.bold)),
+                        content: TextField(
+                          controller: payCtrl,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            labelText:
+                                'Amount (Due: ${ctrl.formatMoney(inv.dueAmount)})',
+                            border: const OutlineInputBorder(),
+                          ),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(dCtx),
+                            child: const Text('Cancel'),
+                          ),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF10B981),
+                              foregroundColor: Colors.white,
+                            ),
+                            onPressed: () {
+                              final amt = double.tryParse(payCtrl.text) ?? 0;
+                              if (amt > 0) {
+                                ctrl.receiveInvoicePayment(inv.id, amt);
+                              }
+                              Navigator.pop(dCtx);
+                            },
+                            child: const Text('Save Payment'),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.payments_rounded, size: 18),
+                ),
+                const SizedBox(width: 6),
+              ],
               // 1. View / Print Bill Button
               Expanded(
                 child: ElevatedButton.icon(

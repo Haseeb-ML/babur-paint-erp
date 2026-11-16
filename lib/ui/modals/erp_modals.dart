@@ -445,8 +445,10 @@ class ErpModals {
     final custNameCtrl = TextEditingController(text: ctrl.tr('walkInCust'));
     final custPhoneCtrl = TextEditingController(text: '0300-0000000');
     final discountCtrl = TextEditingController(text: '0');
+    final paidCtrl = TextEditingController();
     int? selectedPainterId;
     bool discountIsPercent = true;
+    bool paidEdited = false;
 
     showModalBottomSheet(
       context: context,
@@ -462,6 +464,10 @@ class ErpModals {
                 ? (ctrl.cartTotal * (rawInput.clamp(0, 100)) / 100.0)
                 : rawInput;
             final double grand = (ctrl.cartTotal - disc) > 0 ? (ctrl.cartTotal - disc) : 0;
+            final double paidNow = paidEdited
+                ? (double.tryParse(paidCtrl.text) ?? 0).clamp(0, grand).toDouble()
+                : grand;
+            final double dueNow = (grand - paidNow).clamp(0, grand).toDouble();
 
             return Directionality(
               textDirection: ctrl.isRtl ? TextDirection.rtl : TextDirection.ltr,
@@ -825,23 +831,86 @@ class ErpModals {
                                 ),
                               ],
                               const Divider(height: 16),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    ctrl.tr('lblCartGrand'),
-                                    style: _txt(ctrl, size: 13, weight: FontWeight.bold),
-                                  ),
-                                  Text(
-                                    ctrl.formatMoney(grand),
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w900,
-                                      color: isDark ? Colors.cyanAccent : ctrl.palette.primary,
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      ctrl.tr('lblCartGrand'),
+                                      style: _txt(ctrl, size: 13, weight: FontWeight.bold),
                                     ),
-                                  ),
-                                ],
-                              ),
+                                    Text(
+                                      ctrl.formatMoney(grand),
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w900,
+                                        color: isDark ? Colors.cyanAccent : ctrl.palette.primary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      flex: 4,
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            ctrl.currentLang == 'ur'
+                                                ? 'ابھی وصولی (Paid):'
+                                                : 'Paid Now (Rs.):',
+                                            style: _txt(ctrl, size: 11.5, weight: FontWeight.w600),
+                                          ),
+                                          if (dueNow > 0.01)
+                                            Text(
+                                              'Due: ${ctrl.formatMoney(dueNow)}',
+                                              style: const TextStyle(
+                                                fontSize: 10.5,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.redAccent,
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                    InkWell(
+                                      onTap: () => setModalState(() {
+                                        paidEdited = true;
+                                        paidCtrl.text = (grand / 2).round().toString();
+                                      }),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                        margin: const EdgeInsets.only(right: 6),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFF59E0B).withValues(alpha: 0.18),
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(color: const Color(0xFFF59E0B)),
+                                        ),
+                                        child: const Text(
+                                          '50%',
+                                          style: TextStyle(
+                                            fontSize: 10.5,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFFD97706),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      flex: 4,
+                                      child: _compactInput(
+                                        ctrl,
+                                        paidCtrl,
+                                        isNumber: true,
+                                        hint: '${grand.round()}',
+                                        onChanged: (v) => setModalState(() {
+                                          paidEdited = v.trim().isNotEmpty;
+                                        }),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                             ],
                           ),
                         ),
@@ -877,11 +946,12 @@ class ErpModals {
                                 ),
                                 onPressed: () {
                                   final inv = ctrl.completePosCheckout(
-                                    mode: 'Cash',
+                                    mode: dueNow <= 0.01 ? 'Cash' : 'Partial',
                                     customerName: custNameCtrl.text,
                                     customerPhone: custPhoneCtrl.text,
                                     painterId: selectedPainterId,
                                     discount: disc,
+                                    paidAmount: paidNow,
                                   );
                                   Navigator.pop(ctx);
                                   if (inv != null) {
@@ -889,7 +959,11 @@ class ErpModals {
                                   }
                                 },
                                 child: Text(
-                                  ctrl.tr('btnCartCash'),
+                                  dueNow > 0.01 && paidNow > 0.01
+                                      ? (ctrl.currentLang == 'ur'
+                                          ? 'جزوی ادائیگی (${ctrl.formatMoney(paidNow)})'
+                                          : 'Partial (${paidNow.round()})')
+                                      : ctrl.tr('btnCartCash'),
                                   style: _txt(ctrl,
                                       size: 12, weight: FontWeight.bold, color: Colors.white),
                                 ),
@@ -912,6 +986,7 @@ class ErpModals {
                                     customerPhone: custPhoneCtrl.text,
                                     painterId: selectedPainterId,
                                     discount: disc,
+                                    paidAmount: 0,
                                   );
                                   Navigator.pop(ctx);
                                   if (inv != null) {
@@ -988,11 +1063,11 @@ class ErpModals {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text(
-                                'BABUR & BROTHERS HARDWARE',
+                                'BABUR & BROTHERS',
                                 style: TextStyle(
                                   color: Color(0xFFF59E0B),
                                   fontWeight: FontWeight.w900,
-                                  fontSize: 12,
+                                  fontSize: 13,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -1103,7 +1178,7 @@ class ErpModals {
             OutlinedButton.icon(
               onPressed: () {
                 final lines = [
-                  '*BABUR & BROTHERS HARDWARE*',
+                  '*BABUR & BROTHERS*',
                   ctrl.shopProfile.address,
                   'Tel: ${ctrl.shopProfile.phone}',
                   'Customer: $customerName',

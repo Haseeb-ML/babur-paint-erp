@@ -700,11 +700,13 @@ class InvoiceRecord {
   String invoiceNo;
   String customerName;
   String customerPhone;
-  String mode; // 'Cash' or 'Udhar'
+  String mode; // 'Cash', 'Partial', or 'Udhar'
   List<CartItem> items;
   double subtotal;
   double discount;
   double total;
+  double paidAmount;
+  double dueAmount;
   int? painterId;
   String dateStr;
   int timestamp;
@@ -719,10 +721,22 @@ class InvoiceRecord {
     required this.subtotal,
     required this.discount,
     required this.total,
+    double? paidAmount,
+    double? dueAmount,
     this.painterId,
     required this.dateStr,
     required this.timestamp,
-  });
+  })  : paidAmount = paidAmount ?? (mode == 'Cash' ? total : 0),
+        dueAmount = dueAmount ??
+            ((total - (paidAmount ?? (mode == 'Cash' ? total : 0)))
+                .clamp(0, total)
+                .toDouble());
+
+  String get paymentStatusLabel {
+    if (dueAmount <= 0.01) return 'PAID';
+    if (paidAmount > 0.01) return 'PARTIAL';
+    return 'DUE / CREDIT';
+  }
 
   Map<String, dynamic> toMap() => {
         'id': id,
@@ -734,27 +748,41 @@ class InvoiceRecord {
         'subtotal': subtotal,
         'discount': discount,
         'total': total,
+        'paidAmount': paidAmount,
+        'dueAmount': dueAmount,
         'painterId': painterId,
         'dateStr': dateStr,
         'timestamp': timestamp,
       };
 
-  factory InvoiceRecord.fromMap(Map<String, dynamic> map) => InvoiceRecord(
-        id: map['id'] ?? DateTime.now().millisecondsSinceEpoch,
-        invoiceNo: map['invoiceNo'] ?? '',
-        customerName: map['customerName'] ?? '',
-        customerPhone: map['customerPhone'] ?? '',
-        mode: map['mode'] ?? 'Cash',
-        items: (map['items'] as List<dynamic>? ?? [])
-            .map((e) => CartItem.fromMap(Map<String, dynamic>.from(e as Map)))
-            .toList(),
-        subtotal: (map['subtotal'] ?? 0).toDouble(),
-        discount: (map['discount'] ?? 0).toDouble(),
-        total: (map['total'] ?? 0).toDouble(),
-        painterId: map['painterId'],
-        dateStr: map['dateStr'] ?? '',
-        timestamp: map['timestamp'] ?? DateTime.now().millisecondsSinceEpoch,
-      );
+  factory InvoiceRecord.fromMap(Map<String, dynamic> map) {
+    final double total = (map['total'] ?? 0).toDouble();
+    final String mode = map['mode'] ?? 'Cash';
+    final double? paid = map['paidAmount'] != null
+        ? (map['paidAmount'] as num).toDouble()
+        : null;
+    final double? due = map['dueAmount'] != null
+        ? (map['dueAmount'] as num).toDouble()
+        : null;
+    return InvoiceRecord(
+      id: map['id'] ?? DateTime.now().millisecondsSinceEpoch,
+      invoiceNo: map['invoiceNo'] ?? '',
+      customerName: map['customerName'] ?? '',
+      customerPhone: map['customerPhone'] ?? '',
+      mode: mode,
+      items: (map['items'] as List<dynamic>? ?? [])
+          .map((e) => CartItem.fromMap(Map<String, dynamic>.from(e as Map)))
+          .toList(),
+      subtotal: (map['subtotal'] ?? 0).toDouble(),
+      discount: (map['discount'] ?? 0).toDouble(),
+      total: total,
+      paidAmount: paid,
+      dueAmount: due,
+      painterId: map['painterId'],
+      dateStr: map['dateStr'] ?? '',
+      timestamp: map['timestamp'] ?? DateTime.now().millisecondsSinceEpoch,
+    );
+  }
 
   static String encodeList(List<InvoiceRecord> list) =>
       jsonEncode(list.map((e) => e.toMap()).toList());

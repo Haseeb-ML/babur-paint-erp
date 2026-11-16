@@ -846,11 +846,12 @@ class ErpController extends ChangeNotifier {
   }
 
   InvoiceRecord? completePosCheckout({
-    required String mode, // 'Cash' or 'Udhar'
+    required String mode, // 'Cash', 'Partial', or 'Udhar'
     required String customerName,
     required String customerPhone,
     required int? painterId,
     required double discount,
+    double? paidAmount,
   }) {
     if (posCart.isEmpty) {
       showToast(tr('cartEmpty'));
@@ -869,6 +870,16 @@ class ErpController extends ChangeNotifier {
     }
     final double finalBill = (subtotal - discount) > 0 ? (subtotal - discount) : 0;
     totalProfit = (totalProfit - discount) > 0 ? (totalProfit - discount) : 0;
+
+    final double actualPaid = (paidAmount != null
+            ? paidAmount.clamp(0, finalBill)
+            : (mode == 'Cash' ? finalBill : 0))
+        .toDouble();
+    final double actualDue =
+        (finalBill - actualPaid).clamp(0, finalBill).toDouble();
+    final String effectiveMode = actualDue <= 0.01
+        ? 'Cash'
+        : (actualPaid > 0.01 ? 'Partial' : 'Udhar');
 
     final String cName = customerName.trim().isEmpty ? tr('walkInCust') : customerName.trim();
     final String rawPhone = customerPhone.trim();
@@ -897,7 +908,7 @@ class ErpController extends ChangeNotifier {
       invoiceNo: invoiceNo,
       customerName: cName,
       customerPhone: cPhone,
-      mode: mode,
+      mode: effectiveMode,
       items: posCart
           .map((i) => CartItem(
                 prodId: i.prodId,
@@ -913,26 +924,37 @@ class ErpController extends ChangeNotifier {
       subtotal: subtotal,
       discount: discount,
       total: finalBill,
+      paidAmount: actualPaid,
+      dueAmount: actualDue,
       painterId: painterId,
       dateStr: dateStr,
       timestamp: now.millisecondsSinceEpoch,
     );
     invoices.insert(0, invoiceRecord);
 
-    if (mode == 'Cash') {
+    if (actualPaid > 0.01) {
+      final double paidProfit = finalBill > 0
+          ? (totalProfit * (actualPaid / finalBill)).roundToDouble()
+          : 0;
       cashLedger.insert(
         0,
         CashLedgerEntry(
           id: now.millisecondsSinceEpoch,
           type: 'income',
-          catUr: 'پوائنٹ آف سیل نقد بل ($invoiceNo)',
-          catRo: 'POS Naqad Bill ($invoiceNo)',
-          catEn: 'POS Cash Sale ($invoiceNo)',
+          catUr: actualDue > 0.01
+              ? 'جزوی نقد وصولی ($invoiceNo)'
+              : 'پوائنٹ آف سیل نقد بل ($invoiceNo)',
+          catRo: actualDue > 0.01
+              ? 'Partial Cash ($invoiceNo)'
+              : 'POS Naqad Bill ($invoiceNo)',
+          catEn: actualDue > 0.01
+              ? 'Partial Payment ($invoiceNo)'
+              : 'POS Cash Sale ($invoiceNo)',
           descUr: '$cName - $itemsDescUr',
           descRo: '$cName - $itemsDescRo',
           descEn: '$cName - $itemsDescEn',
-          amount: finalBill,
-          profit: totalProfit,
+          amount: actualPaid,
+          profit: paidProfit,
           dateUr: 'ابھی',
           dateRo: 'Abhi',
           dateEn: 'Just Now',
@@ -940,30 +962,41 @@ class ErpController extends ChangeNotifier {
           invoiceId: invoiceRecord.id,
         ),
       );
-      showToast(currentLang == 'ur'
-          ? 'نقد بل نمبر $invoiceNo بن گیا!'
-          : 'Cash Bill $invoiceNo Generated!');
-    } else {
+    }
+
+    if (actualDue > 0.01) {
       final existingCustIdx = customers.indexWhere((c) =>
           (cPhone.isNotEmpty && c.phone == cPhone) ||
           c.nameUr == cName ||
           c.nameRo.toLowerCase() == cName.toLowerCase() ||
           c.nameEn.toLowerCase() == cName.toLowerCase());
 
-      if (existingCustIdx >= 0) {
-        customers[existingCustIdx].totalGiven += finalBill;
-        customers[existingCustIdx].history.insert(
-          0,
+      final newEntries = <UdharHistoryEntry>[
+        if (actualPaid > 0.01)
           UdharHistoryEntry(
-            id: now.millisecondsSinceEpoch + 1,
-            type: 'given',
-            amount: finalBill,
-            descUr: 'بل نمبر $invoiceNo ($itemsDescUr)',
-            descRo: 'Bill No $invoiceNo ($itemsDescRo)',
-            descEn: 'Invoice $invoiceNo ($itemsDescEn)',
+            id: now.millisecondsSinceEpoch + 2,
+            type: 'paid',
+            amount: actualPaid,
+            descUr: 'بل $invoiceNo پر نقد ادائیگی',
+            descRo: 'Bill $invoiceNo par cash adaigi',
+            descEn: 'Paid on Invoice $invoiceNo',
             dateStr: dateStr,
           ),
-        );
+        UdharHistoryEntry(
+          id: now.millisecondsSinceEpoch + 1,
+          type: 'given',
+          amount: finalBill,
+          descUr: 'بل نمبر $invoiceNo ($itemsDescUr)',
+          descRo: 'Bill No $invoiceNo ($itemsDescRo)',
+          descEn: 'Invoice $invoiceNo ($itemsDescEn)',
+          dateStr: dateStr,
+        ),
+      ];
+
+      if (existingCustIdx >= 0) {
+        customers[existingCustIdx].totalGiven += finalBill;
+        customers[existingCustIdx].totalPaid += actualPaid;
+        customers[existingCustIdx].history.insertAll(0, newEntries);
       } else {
         customers.insert(
           0,
@@ -977,30 +1010,91 @@ class ErpController extends ChangeNotifier {
             workRo: itemsDescRo,
             workEn: itemsDescEn,
             totalGiven: finalBill,
-            totalPaid: 0,
-            history: [
-              UdharHistoryEntry(
-                id: now.millisecondsSinceEpoch + 1,
-                type: 'given',
-                amount: finalBill,
-                descUr: 'بل نمبر $invoiceNo ($itemsDescUr)',
-                descRo: 'Bill No $invoiceNo ($itemsDescRo)',
-                descEn: 'Invoice $invoiceNo ($itemsDescEn)',
-                dateStr: dateStr,
-              ),
-            ],
+            totalPaid: actualPaid,
+            history: newEntries,
           ),
         );
       }
+      showToast(actualPaid > 0.01
+          ? (currentLang == 'ur'
+              ? 'بل $invoiceNo: ${formatMoney(actualPaid)} وصول، ${formatMoney(actualDue)} بقایا!'
+              : 'Bill $invoiceNo: Paid ${formatMoney(actualPaid)}, Due ${formatMoney(actualDue)}')
+          : (currentLang == 'ur'
+              ? 'ادھار بل نمبر $invoiceNo درج ہو گیا!'
+              : 'Credit Bill $invoiceNo Generated!'));
+    } else {
       showToast(currentLang == 'ur'
-          ? 'ادھار بل نمبر $invoiceNo درج ہو گیا!'
-          : 'Credit Bill $invoiceNo Generated!');
+          ? 'نقد بل نمبر $invoiceNo بن گیا!'
+          : 'Cash Bill $invoiceNo Generated!');
     }
 
     posCart.clear();
     saveState();
     notifyListeners();
     return invoiceRecord;
+  }
+
+  /// Records a subsequent payment against a Due or Partial invoice.
+  void receiveInvoicePayment(int invoiceId, double amount) {
+    final idx = invoices.indexWhere((i) => i.id == invoiceId);
+    if (idx < 0 || amount <= 0) return;
+    final inv = invoices[idx];
+    if (inv.dueAmount <= 0.01) return;
+
+    final double pay = amount.clamp(0, inv.dueAmount).toDouble();
+    inv.paidAmount += pay;
+    inv.dueAmount = (inv.total - inv.paidAmount).clamp(0, inv.total).toDouble();
+    inv.mode = inv.dueAmount <= 0.01 ? 'Cash' : 'Partial';
+
+    final now = DateTime.now();
+    final dateStr =
+        '${now.day}/${now.month}/${now.year} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+
+    cashLedger.insert(
+      0,
+      CashLedgerEntry(
+        id: now.millisecondsSinceEpoch,
+        type: 'income',
+        catUr: 'بقایا بل وصولی (${inv.invoiceNo})',
+        catRo: 'Baqaya Bill Wasooli (${inv.invoiceNo})',
+        catEn: 'Due Payment (${inv.invoiceNo})',
+        descUr: '${inv.customerName} - ${inv.invoiceNo}',
+        descRo: '${inv.customerName} - ${inv.invoiceNo}',
+        descEn: '${inv.customerName} - ${inv.invoiceNo}',
+        amount: pay,
+        profit: 0,
+        dateUr: 'ابھی',
+        dateRo: 'Abhi',
+        dateEn: 'Just Now',
+        invoiceNo: inv.invoiceNo,
+        invoiceId: inv.id,
+      ),
+    );
+
+    final custIdx = customers.indexWhere((c) =>
+        (inv.customerPhone.isNotEmpty && c.phone == inv.customerPhone) ||
+        c.nameEn.toLowerCase() == inv.customerName.toLowerCase() ||
+        c.nameRo.toLowerCase() == inv.customerName.toLowerCase() ||
+        c.nameUr == inv.customerName);
+    if (custIdx >= 0) {
+      customers[custIdx].totalPaid += pay;
+      customers[custIdx].history.insert(
+            0,
+            UdharHistoryEntry(
+              id: now.millisecondsSinceEpoch + 1,
+              type: 'paid',
+              amount: pay,
+              descUr: 'بل ${inv.invoiceNo} کی وصولی',
+              descRo: 'Bill ${inv.invoiceNo} ki wasooli',
+              descEn: 'Payment for Invoice ${inv.invoiceNo}',
+              dateStr: dateStr,
+            ),
+          );
+    }
+
+    saveState();
+    showToast('Received ${formatMoney(pay)} for ${inv.invoiceNo}');
+    notifyListeners();
   }
 
   void deleteInvoice(int id) {
