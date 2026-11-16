@@ -807,4 +807,245 @@ class InvoicePdfService {
         ? 'انوائس پریویو کھول دی گئی ہے۔ وہاں سے پرنٹ کریں'
         : 'Invoice preview opened. Print from there.');
   }
+
+  /// Generates a clean A4 Supplier Purchase & Payment Voucher PDF.
+  static Future<Uint8List> generateSupplierPdf(
+    ErpController ctrl,
+    SupplierAccount s,
+  ) async {
+    final doc = pw.Document();
+    final primaryColor = PdfColor.fromHex('#1E3A8A');
+    final secondaryColor = PdfColor.fromHex('#059669');
+    final borderColor = PdfColor.fromHex('#CBD5E1');
+    final lightBg = PdfColor.fromHex('#F8FAFC');
+
+    final company = _clean(s.companyEn.isNotEmpty
+        ? s.companyEn
+        : (s.companyRo.isNotEmpty ? s.companyRo : 'Supplier'));
+    final supply = _clean(s.lastSupplyEn.isNotEmpty
+        ? s.lastSupplyEn
+        : (s.lastSupplyRo.isNotEmpty ? s.lastSupplyRo : 'Paint & Supply'));
+    final safePhone = _clean(ctrl.shopPhone);
+    final rem = s.remaining;
+    final isPaid = rem <= 0.01;
+    final now = DateTime.now();
+    final dateStr =
+        '${now.day}/${now.month}/${now.year} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+
+    doc.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(24),
+        build: (pw.Context context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+            children: [
+              pw.Container(
+                padding: const pw.EdgeInsets.only(bottom: 12),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border(
+                    bottom: pw.BorderSide(color: primaryColor, width: 2),
+                  ),
+                ),
+                child: pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          'BABUR & BROTHERS',
+                          style: pw.TextStyle(
+                            fontSize: 16,
+                            fontWeight: pw.FontWeight.bold,
+                            color: primaryColor,
+                          ),
+                        ),
+                        pw.SizedBox(height: 3),
+                        pw.Text(
+                          'Bhera Road, Nawaz Plaza, Malikwal (Ph: $safePhone)',
+                          style: const pw.TextStyle(
+                            fontSize: 8.5,
+                            color: PdfColors.grey600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    pw.Container(
+                      padding: const pw.EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: pw.BoxDecoration(
+                        color: isPaid
+                            ? secondaryColor
+                            : PdfColor.fromHex('#DC2626'),
+                        borderRadius:
+                            const pw.BorderRadius.all(pw.Radius.circular(6)),
+                      ),
+                      child: pw.Column(
+                        children: [
+                          pw.Text(
+                            'SUPPLIER VOUCHER',
+                            style: pw.TextStyle(
+                              fontSize: 9,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.white,
+                            ),
+                          ),
+                          pw.Text(
+                            isPaid ? 'PAID' : 'DUE / CREDIT',
+                            style: pw.TextStyle(
+                              fontSize: 8,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              pw.SizedBox(height: 14),
+              pw.Container(
+                padding: const pw.EdgeInsets.all(12),
+                decoration: pw.BoxDecoration(
+                  color: lightBg,
+                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                  border: pw.Border.all(color: borderColor, width: 0.6),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Text(
+                          'Supplier / Company: $company',
+                          style: pw.TextStyle(
+                              fontSize: 11, fontWeight: pw.FontWeight.bold),
+                        ),
+                        pw.Text(
+                          'Date: $dateStr',
+                          style: const pw.TextStyle(
+                              fontSize: 9, color: PdfColors.grey700),
+                        ),
+                      ],
+                    ),
+                    pw.SizedBox(height: 6),
+                    pw.Text(
+                      'Supply / Purchase Details: $supply',
+                      style: const pw.TextStyle(fontSize: 10),
+                    ),
+                  ],
+                ),
+              ),
+              pw.SizedBox(height: 16),
+              pw.Container(
+                padding: const pw.EdgeInsets.all(12),
+                decoration: pw.BoxDecoration(
+                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                  border: pw.Border.all(color: borderColor, width: 0.8),
+                ),
+                child: pw.Column(
+                  children: [
+                    pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Text('Total Purchase Bill:',
+                            style: const pw.TextStyle(fontSize: 10)),
+                        pw.Text(_formatPdfMoney(s.totalBill),
+                            style: pw.TextStyle(
+                                fontSize: 10.5, fontWeight: pw.FontWeight.bold)),
+                      ],
+                    ),
+                    pw.SizedBox(height: 6),
+                    pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Text('Paid Amount:',
+                            style: pw.TextStyle(
+                                fontSize: 10,
+                                color: secondaryColor,
+                                fontWeight: pw.FontWeight.bold)),
+                        pw.Text(_formatPdfMoney(s.paidBill),
+                            style: pw.TextStyle(
+                                fontSize: 10.5,
+                                color: secondaryColor,
+                                fontWeight: pw.FontWeight.bold)),
+                      ],
+                    ),
+                    pw.Divider(color: borderColor, height: 12),
+                    pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Text('Remaining Payable (Due):',
+                            style: pw.TextStyle(
+                                fontSize: 11,
+                                fontWeight: pw.FontWeight.bold,
+                                color: isPaid
+                                    ? secondaryColor
+                                    : PdfColors.redAccent)),
+                        pw.Text(_formatPdfMoney(rem),
+                            style: pw.TextStyle(
+                                fontSize: 12,
+                                fontWeight: pw.FontWeight.bold,
+                                color: isPaid
+                                    ? secondaryColor
+                                    : PdfColors.redAccent)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              pw.Spacer(),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text(
+                    'Powered by Babur Brothers ERP',
+                    style: const pw.TextStyle(
+                        fontSize: 8, color: PdfColors.grey600),
+                  ),
+                  pw.Column(
+                    children: [
+                      pw.Container(
+                          width: 120, height: 0.5, color: PdfColors.grey700),
+                      pw.SizedBox(height: 3),
+                      pw.Text('Authorized Signature',
+                          style: const pw.TextStyle(
+                              fontSize: 8, color: PdfColors.grey700)),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    return doc.save();
+  }
+
+  /// Shares or saves a Supplier Purchase & Payment Voucher PDF.
+  static Future<void> shareSupplierPdf(
+    BuildContext context,
+    ErpController ctrl,
+    SupplierAccount s,
+  ) async {
+    final safeName = s.companyEn.replaceAll(RegExp(r'[^a-zA-Z0-9_\-]'), '_');
+    try {
+      ctrl.showToast(ctrl.currentLang == 'ur'
+          ? 'سپلائر پی ڈی ایف تیار ہو رہی ہے...'
+          : 'Generating Supplier PDF...');
+      final pdfBytes = await generateSupplierPdf(ctrl, s);
+      await Printing.sharePdf(
+        bytes: pdfBytes,
+        filename: 'Supplier_${safeName}_Babur_Brothers.pdf',
+        subject: 'Supplier Voucher - ${s.companyEn}',
+      );
+    } catch (e) {
+      ctrl.showToast('Failed to generate Supplier PDF: $e');
+    }
+  }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/erp_models.dart';
+import '../../services/invoice_pdf_service.dart';
 import '../../state/erp_controller.dart';
 import '../../theme/app_themes.dart';
 import '../modals/erp_modals.dart';
@@ -2343,15 +2344,28 @@ class ErpViews {
                           ],
                         ),
                       ),
-                      _editDeleteButtons(
-                        isDark: isDark,
-                        onEdit: () => ErpModals.openSupplierModal(context, ctrl, existing: s),
-                        onDelete: () => ErpModals.confirmDelete(
-                          context,
-                          ctrl,
-                          itemTitle: s.getCompany(ctrl.currentLang),
-                          onConfirm: () => ctrl.deleteSupplier(s.id),
-                        ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            tooltip: 'Supplier PDF',
+                            onPressed: () =>
+                                InvoicePdfService.shareSupplierPdf(context, ctrl, s),
+                            icon: const Icon(Icons.picture_as_pdf_rounded,
+                                size: 19, color: Color(0xFF059669)),
+                          ),
+                          _editDeleteButtons(
+                            isDark: isDark,
+                            onEdit: () =>
+                                ErpModals.openSupplierModal(context, ctrl, existing: s),
+                            onDelete: () => ErpModals.confirmDelete(
+                              context,
+                              ctrl,
+                              itemTitle: s.getCompany(ctrl.currentLang),
+                              onConfirm: () => ctrl.deleteSupplier(s.id),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),

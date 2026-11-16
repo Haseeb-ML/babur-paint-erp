@@ -366,6 +366,15 @@ void main() {
       format: PdfPageFormat.roll80,
     );
     expect(pdfRoll.lengthInBytes, greaterThan(300));
+
+    // Verify Supplier Purchase Voucher PDF generation
+    if (ctrl.suppliers.isNotEmpty) {
+      final suppPdf = await InvoicePdfService.generateSupplierPdf(
+        ctrl,
+        ctrl.suppliers.first,
+      );
+      expect(suppPdf.lengthInBytes, greaterThan(500));
+    }
     await tester.pump(const Duration(seconds: 3));
   });
 }
