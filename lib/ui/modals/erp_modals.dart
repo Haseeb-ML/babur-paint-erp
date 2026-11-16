@@ -2548,19 +2548,23 @@ class ErpModals {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  ctrl.currentLang == 'ur'
-                                      ? 'خریداری کی مصنوعات (${purchaseItems.length})'
-                                      : 'Purchase Products (${purchaseItems.length})',
-                                  style: _txt(ctrl,
-                                      size: 12,
-                                      weight: FontWeight.bold,
-                                      color: ctrl.palette.primary),
+                                Expanded(
+                                  child: Text(
+                                    ctrl.currentLang == 'ur'
+                                        ? 'خریداری کی مصنوعات (${purchaseItems.length})'
+                                        : 'Purchase Products (${purchaseItems.length})',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: _txt(ctrl,
+                                        size: 12,
+                                        weight: FontWeight.bold,
+                                        color: ctrl.palette.primary),
+                                  ),
                                 ),
                                 if (ctrl.inventory.isNotEmpty)
-                                  Text(
+                                  const Text(
                                     'Add 1 by 1',
-                                    style: const TextStyle(fontSize: 10, color: Colors.grey),
+                                    style: TextStyle(fontSize: 10, color: Colors.grey),
                                   ),
                               ],
                             ),

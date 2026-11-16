@@ -404,4 +404,81 @@ void main() {
     expect(suppPdf.lengthInBytes, greaterThan(500));
     await tester.pump(const Duration(seconds: 3));
   });
+
+  testWidgets('Supplier Multi-Product Modal UI & Zero Overflow Test',
+      (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(380, 820);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    final ctrl = ErpController();
+    await ctrl.init();
+    ctrl.setLanguage('en');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => ElevatedButton(
+              onPressed: () => ErpModals.openSupplierModal(context, ctrl),
+              child: const Text('Open Supplier Modal'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open Supplier Modal'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Purchase Products (0)'), findsOneWidget);
+
+    // Enter Company Name
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Supplier / Company Name'),
+      'Allied Paint Depot',
+    );
+
+    // Add Product 1: Qty 2, Rate 3500 -> 7000
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Product Name (e.g. Gold White Gln)'),
+      'Gold White Gln',
+    );
+    await tester.enterText(find.widgetWithText(TextField, 'Qty'), '2');
+    await tester.enterText(find.widgetWithText(TextField, 'Rate (Rs.)'), '3500');
+    await tester.ensureVisible(find.text('Add'));
+    await tester.tap(find.text('Add'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Purchase Products (1)'), findsOneWidget);
+
+    // Add Product 2: Qty 3, Rate 2000 -> 6000 (Total = 13000)
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Product Name (e.g. Gold White Gln)'),
+      'Hercules Emulsion Qtr',
+    );
+    await tester.enterText(find.widgetWithText(TextField, 'Qty'), '3');
+    await tester.enterText(find.widgetWithText(TextField, 'Rate (Rs.)'), '2000');
+    await tester.ensureVisible(find.text('Add'));
+    await tester.tap(find.text('Add'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Purchase Products (2)'), findsOneWidget);
+
+    // Enter Paid Amount 5000 and Save
+    await tester.enterText(find.widgetWithText(TextField, 'Paid Amount'), '5000');
+    await tester.ensureVisible(find.text(ctrl.tr('btnNudSave')));
+    await tester.tap(find.text(ctrl.tr('btnNudSave')));
+    await tester.pumpAndSettle();
+
+    final saved = ctrl.suppliers.first;
+    expect(saved.companyEn, 'Allied Paint Depot');
+    expect(saved.items.length, 2);
+    expect(saved.totalBill, 13000);
+    expect(saved.paidBill, 5000);
+    expect(saved.remaining, 8000);
+
+    await tester.pump(const Duration(seconds: 3));
+  });
 }
