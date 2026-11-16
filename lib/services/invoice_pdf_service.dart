@@ -1,5 +1,6 @@
 import 'dart:typed_data';
-import 'package:flutter/material.dart' show BuildContext, MaterialPageRoute, Navigator;
+import 'package:flutter/material.dart'
+    show AppBar, BuildContext, Colors, MaterialPageRoute, Navigator, Scaffold, Text;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -939,7 +940,64 @@ class InvoicePdfService {
                   ],
                 ),
               ),
-              pw.SizedBox(height: 16),
+              pw.SizedBox(height: 12),
+
+              // Products Table
+              pw.TableHelper.fromTextArray(
+                border: pw.TableBorder.all(color: borderColor, width: 0.5),
+                headerDecoration: pw.BoxDecoration(color: primaryColor),
+                headerHeight: 22,
+                cellHeight: 20,
+                columnWidths: {
+                  0: const pw.FixedColumnWidth(24),
+                  1: const pw.FlexColumnWidth(4),
+                  2: const pw.FixedColumnWidth(38),
+                  3: const pw.FixedColumnWidth(65),
+                  4: const pw.FixedColumnWidth(72),
+                },
+                headerAlignments: {
+                  0: pw.Alignment.center,
+                  1: pw.Alignment.centerLeft,
+                  2: pw.Alignment.center,
+                  3: pw.Alignment.centerRight,
+                  4: pw.Alignment.centerRight,
+                },
+                cellAlignments: {
+                  0: pw.Alignment.center,
+                  1: pw.Alignment.centerLeft,
+                  2: pw.Alignment.center,
+                  3: pw.Alignment.centerRight,
+                  4: pw.Alignment.centerRight,
+                },
+                headerStyle: pw.TextStyle(
+                  fontSize: 8,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.white,
+                ),
+                cellStyle: const pw.TextStyle(fontSize: 8.5),
+                headers: const ['#', 'PRODUCT DESCRIPTION', 'QTY', 'RATE', 'AMOUNT'],
+                data: s.items.isNotEmpty
+                    ? List.generate(s.items.length, (i) {
+                        final it = s.items[i];
+                        return [
+                          '${i + 1}',
+                          _safeItemName(it),
+                          '${it.qty}',
+                          _formatPdfMoney(it.price),
+                          _formatPdfMoney(it.subtotal),
+                        ];
+                      })
+                    : [
+                        [
+                          '1',
+                          supply,
+                          '1',
+                          _formatPdfMoney(s.totalBill),
+                          _formatPdfMoney(s.totalBill),
+                        ],
+                      ],
+              ),
+              pw.SizedBox(height: 14),
               pw.Container(
                 padding: const pw.EdgeInsets.all(12),
                 decoration: pw.BoxDecoration(
@@ -1047,5 +1105,37 @@ class InvoicePdfService {
     } catch (e) {
       ctrl.showToast('Failed to generate Supplier PDF: $e');
     }
+  }
+
+  /// Opens a full PDF Preview screen for the Supplier Voucher with Print & Share.
+  static Future<void> printSupplierPdf(
+    BuildContext context,
+    ErpController ctrl,
+    SupplierAccount s,
+  ) async {
+    if (!context.mounted) return;
+    final safeName = s.companyEn.replaceAll(RegExp(r'[^a-zA-Z0-9_\-]'), '_');
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          appBar: AppBar(
+            title: Text(
+              ctrl.currentLang == 'ur'
+                  ? 'سپلائر واؤچر پرنٹ'
+                  : 'Supplier Voucher Print',
+            ),
+            backgroundColor: ctrl.palette.primary,
+            foregroundColor: Colors.white,
+          ),
+          body: PdfPreview(
+            canChangePageFormat: false,
+            canChangeOrientation: false,
+            canDebug: false,
+            pdfFileName: 'Supplier_${safeName}_Babur_Brothers.pdf',
+            build: (_) => generateSupplierPdf(ctrl, s),
+          ),
+        ),
+      ),
+    );
   }
 }

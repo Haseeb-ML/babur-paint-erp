@@ -4,6 +4,7 @@ import 'package:pdf/pdf.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:babur_brothers_paint_erp/data/gobis_shade_cards.dart';
 import 'package:babur_brothers_paint_erp/main.dart';
+import 'package:babur_brothers_paint_erp/models/erp_models.dart';
 import 'package:babur_brothers_paint_erp/services/invoice_pdf_service.dart';
 import 'package:babur_brothers_paint_erp/state/erp_controller.dart';
 import 'package:babur_brothers_paint_erp/ui/modals/erp_modals.dart';
@@ -367,14 +368,40 @@ void main() {
     );
     expect(pdfRoll.lengthInBytes, greaterThan(300));
 
-    // Verify Supplier Purchase Voucher PDF generation
-    if (ctrl.suppliers.isNotEmpty) {
-      final suppPdf = await InvoicePdfService.generateSupplierPdf(
-        ctrl,
-        ctrl.suppliers.first,
-      );
-      expect(suppPdf.lengthInBytes, greaterThan(500));
-    }
+    // Verify Multi-Product Supplier Purchase Bill & Table PDF generation
+    ctrl.saveOrUpdateSupplier(
+      company: 'Gobis Depot Lahore',
+      lastSupply: 'Gold White x5, Enamel x3',
+      totalBill: 32000,
+      paidBill: 15000,
+      items: [
+        CartItem(
+          prodId: 1,
+          code: 'SUP-1',
+          nameUr: 'Gold White Gln',
+          nameRo: 'Gold White Gln',
+          nameEn: 'Gold White Gln',
+          price: 4000,
+          cost: 4000,
+          qty: 5,
+        ),
+        CartItem(
+          prodId: 2,
+          code: 'SUP-2',
+          nameUr: 'Gold Enamel Gln',
+          nameRo: 'Gold Enamel Gln',
+          nameEn: 'Gold Enamel Gln',
+          price: 4000,
+          cost: 4000,
+          qty: 3,
+        ),
+      ],
+    );
+    final supp = ctrl.suppliers.first;
+    expect(supp.items.length, 2);
+    expect(supp.remaining, 17000);
+    final suppPdf = await InvoicePdfService.generateSupplierPdf(ctrl, supp);
+    expect(suppPdf.lengthInBytes, greaterThan(500));
     await tester.pump(const Duration(seconds: 3));
   });
 }

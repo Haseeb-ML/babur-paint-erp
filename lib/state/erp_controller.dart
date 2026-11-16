@@ -1631,6 +1631,7 @@ class ErpController extends ChangeNotifier {
     required String lastSupply,
     required double totalBill,
     required double paidBill,
+    List<CartItem>? items,
   }) {
     if (existingId != null) {
       final idx = suppliers.indexWhere((s) => s.id == existingId);
@@ -1643,6 +1644,9 @@ class ErpController extends ChangeNotifier {
         suppliers[idx].lastSupplyEn = lastSupply;
         suppliers[idx].totalBill = totalBill;
         suppliers[idx].paidBill = paidBill;
+        if (items != null) {
+          suppliers[idx].items = items;
+        }
       }
     } else {
       suppliers.insert(
@@ -1657,6 +1661,7 @@ class ErpController extends ChangeNotifier {
           lastSupplyEn: lastSupply,
           totalBill: totalBill,
           paidBill: paidBill,
+          items: items,
         ),
       );
     }

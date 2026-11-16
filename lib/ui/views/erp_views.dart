@@ -225,48 +225,96 @@ class ErpViews {
                 ],
               ),
               const SizedBox(height: 8),
-              InkWell(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (ctx) => AllInvoicesScreen(controller: ctrl),
-                    ),
-                  );
-                },
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF10B981).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.receipt_long_rounded, size: 16, color: Color(0xFF10B981)),
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
-                          ctrl.currentLang == 'ur'
-                              ? 'تمام بلز کا صفحہ کھولیں (${ctrl.invoices.length})'
-                              : 'All Bills & Invoices (${ctrl.invoices.length})',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: _txt(
-                            ctrl,
-                            size: 11.5,
-                            weight: FontWeight.bold,
-                            color: const Color(0xFF10B981),
-                          ),
+              Row(
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      onTap: () {
+                        ctrl.setKhataSubTab('supp');
+                        ctrl.switchTab('khata');
+                      },
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0284C7).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                              color: const Color(0xFF0284C7).withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.local_shipping_outlined,
+                                size: 16, color: Color(0xFF0284C7)),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                ctrl.currentLang == 'ur'
+                                    ? 'سپلائرز / خریداری (${ctrl.suppliers.length})'
+                                    : 'Suppliers (${ctrl.suppliers.length})',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: _txt(
+                                  ctrl,
+                                  size: 11.5,
+                                  weight: FontWeight.bold,
+                                  color: const Color(0xFF0284C7),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(width: 4),
-                      const Icon(Icons.arrow_forward_rounded, size: 14, color: Color(0xFF10B981)),
-                    ],
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (ctx) => AllInvoicesScreen(controller: ctrl),
+                          ),
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                              color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.receipt_long_rounded,
+                                size: 16, color: Color(0xFF10B981)),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                ctrl.currentLang == 'ur'
+                                    ? 'تمام بلز (${ctrl.invoices.length})'
+                                    : 'All Bills (${ctrl.invoices.length})',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: _txt(
+                                  ctrl,
+                                  size: 11.5,
+                                  weight: FontWeight.bold,
+                                  color: const Color(0xFF10B981),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -2348,7 +2396,16 @@ class ErpViews {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           IconButton(
-                            tooltip: 'Supplier PDF',
+                            tooltip: 'Print Supplier Voucher',
+                            visualDensity: VisualDensity.compact,
+                            onPressed: () =>
+                                InvoicePdfService.printSupplierPdf(context, ctrl, s),
+                            icon: const Icon(Icons.print_rounded,
+                                size: 19, color: Color(0xFF2563EB)),
+                          ),
+                          IconButton(
+                            tooltip: 'Share Supplier PDF',
+                            visualDensity: VisualDensity.compact,
                             onPressed: () =>
                                 InvoicePdfService.shareSupplierPdf(context, ctrl, s),
                             icon: const Icon(Icons.picture_as_pdf_rounded,

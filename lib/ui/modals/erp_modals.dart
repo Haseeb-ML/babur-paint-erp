@@ -2459,167 +2459,376 @@ class ErpModals {
         TextEditingController(text: existing != null ? '${existing.totalBill.round()}' : '');
     final paidCtrl =
         TextEditingController(text: existing != null ? '${existing.paidBill.round()}' : '0');
+    final itemNameCtrl = TextEditingController();
+    final itemQtyCtrl = TextEditingController(text: '1');
+    final itemRateCtrl = TextEditingController();
+    final List<CartItem> purchaseItems = existing != null
+        ? existing.items
+            .map((e) => CartItem(
+                  prodId: e.prodId,
+                  code: e.code,
+                  nameUr: e.nameUr,
+                  nameRo: e.nameRo,
+                  nameEn: e.nameEn,
+                  price: e.price,
+                  cost: e.cost,
+                  qty: e.qty,
+                ))
+            .toList()
+        : [];
+    int? pickedProdId;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        final isDark = ctrl.isDarkMode;
-        return Directionality(
-          textDirection: ctrl.isRtl ? TextDirection.rtl : TextDirection.ltr,
-          child: Padding(
-            padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-            child: Container(
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF0F172A) : Colors.white,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              padding: const EdgeInsets.all(16),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            ctrl.tr('btnKhNewSupp'),
-                            style: _txt(ctrl,
-                                size: 14, weight: FontWeight.bold, color: ctrl.palette.primary),
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          icon: const Icon(Icons.close_rounded, size: 20),
-                        ),
-                      ],
-                    ),
-                    const Divider(),
-                    _inputField(ctrl, compCtrl, 'Supplier / Company Name'),
-                    const SizedBox(height: 8),
-                    _inputField(ctrl, supCtrl, 'Supplied Stock Details'),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _inputField(ctrl, totalCtrl, 'Total Bill', isNumber: true),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _inputField(ctrl, paidCtrl, 'Paid Amount', isNumber: true),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    if (existing != null) ...[
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) {
+          final isDark = ctrl.isDarkMode;
+          final cardBg = isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC);
+
+          void recalcFromItems() {
+            if (purchaseItems.isEmpty) return;
+            final sum = purchaseItems.fold<double>(0, (s, it) => s + it.subtotal);
+            totalCtrl.text = sum.round().toString();
+            supCtrl.text = purchaseItems
+                .map((it) => '${it.getName(ctrl.currentLang)} x${it.qty}')
+                .join(', ');
+          }
+
+          return Directionality(
+            textDirection: ctrl.isRtl ? TextDirection.rtl : TextDirection.ltr,
+            child: Padding(
+              padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+              child: Container(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(ctx).size.height * 0.9,
+                ),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                padding: const EdgeInsets.all(16),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
                       Row(
                         children: [
                           Expanded(
-                            flex: 1,
-                            child: OutlinedButton.icon(
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.redAccent,
-                                side: const BorderSide(color: Colors.redAccent),
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12)),
-                              ),
-                              onPressed: () {
-                                confirmDelete(
-                                  context,
-                                  ctrl,
-                                  itemTitle: existing.getCompany(ctrl.currentLang),
-                                  onConfirm: () {
-                                    Navigator.pop(ctx);
-                                    ctrl.deleteSupplier(existing.id);
-                                  },
-                                );
-                              },
-                              icon: const Icon(Icons.delete_outline, size: 16),
-                              label: Text(
-                                ctrl.currentLang == 'ur' ? 'حذف' : 'Delete',
-                                style: _txt(ctrl,
-                                    size: 12,
-                                    weight: FontWeight.bold,
-                                    color: Colors.redAccent),
-                              ),
+                            child: Text(
+                              ctrl.tr('btnKhNewSupp'),
+                              style: _txt(ctrl,
+                                  size: 14, weight: FontWeight.bold, color: ctrl.palette.primary),
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            flex: 2,
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: ctrl.palette.primary,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12)),
-                              ),
-                              onPressed: () {
-                                final nm = compCtrl.text.trim();
-                                final tb = double.tryParse(totalCtrl.text) ?? 0;
-                                if (nm.isEmpty || tb <= 0) return;
-                                ctrl.saveOrUpdateSupplier(
-                                  existingId: existing.id,
-                                  company: nm,
-                                  lastSupply: supCtrl.text.trim().isEmpty
-                                      ? "Gobi's Paint Stock"
-                                      : supCtrl.text.trim(),
-                                  totalBill: tb,
-                                  paidBill: double.tryParse(paidCtrl.text) ?? 0,
-                                );
-                                Navigator.pop(ctx);
-                              },
-                              child: Text(
-                                ctrl.currentLang == 'ur' ? 'اپڈیٹ سپلائر' : 'Update Supplier',
-                                style: _txt(ctrl,
-                                    size: 13,
-                                    weight: FontWeight.bold,
-                                    color: Colors.white),
-                              ),
-                            ),
+                          IconButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            icon: const Icon(Icons.close_rounded, size: 20),
                           ),
                         ],
                       ),
-                    ] else ...[
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: ctrl.palette.primary,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                          onPressed: () {
-                            final nm = compCtrl.text.trim();
-                            final tb = double.tryParse(totalCtrl.text) ?? 0;
-                            if (nm.isEmpty || tb <= 0) return;
-                            ctrl.saveOrUpdateSupplier(
-                              existingId: null,
-                              company: nm,
-                              lastSupply: supCtrl.text.trim().isEmpty
-                                  ? "Gobi's Paint Stock"
-                                  : supCtrl.text.trim(),
-                              totalBill: tb,
-                              paidBill: double.tryParse(paidCtrl.text) ?? 0,
-                            );
-                            Navigator.pop(ctx);
-                          },
-                          child: Text(ctrl.tr('btnNudSave'),
-                              style: _txt(ctrl, size: 13, weight: FontWeight.bold, color: Colors.white)),
+                      const Divider(),
+                      _inputField(ctrl, compCtrl, 'Supplier / Company Name'),
+                      const SizedBox(height: 8),
+
+                      // Multi-Product Purchase Builder
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: cardBg,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                              color: isDark ? Colors.white12 : Colors.grey.shade300),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  ctrl.currentLang == 'ur'
+                                      ? 'خریداری کی مصنوعات (${purchaseItems.length})'
+                                      : 'Purchase Products (${purchaseItems.length})',
+                                  style: _txt(ctrl,
+                                      size: 12,
+                                      weight: FontWeight.bold,
+                                      color: ctrl.palette.primary),
+                                ),
+                                if (ctrl.inventory.isNotEmpty)
+                                  Text(
+                                    'Add 1 by 1',
+                                    style: const TextStyle(fontSize: 10, color: Colors.grey),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            if (ctrl.inventory.isNotEmpty) ...[
+                              DropdownButtonFormField<int>(
+                                initialValue: pickedProdId,
+                                isExpanded: true,
+                                decoration: InputDecoration(
+                                  hintText: 'Pick from Inventory (optional)',
+                                  filled: true,
+                                  fillColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 6),
+                                  border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8)),
+                                ),
+                                items: ctrl.inventory
+                                    .map((p) => DropdownMenuItem<int>(
+                                          value: p.id,
+                                          child: Text(
+                                            '${p.getName(ctrl.currentLang)} (${p.getSize(ctrl.currentLang)})',
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(fontSize: 11.5),
+                                          ),
+                                        ))
+                                    .toList(),
+                                onChanged: (val) {
+                                  if (val == null) return;
+                                  final found =
+                                      ctrl.inventory.firstWhere((p) => p.id == val);
+                                  setModalState(() {
+                                    pickedProdId = val;
+                                    itemNameCtrl.text =
+                                        '${found.getName(ctrl.currentLang)} (${found.getSize(ctrl.currentLang)})';
+                                    itemRateCtrl.text = found.costPrice > 0
+                                        ? found.costPrice.round().toString()
+                                        : found.salePrice.round().toString();
+                                  });
+                                },
+                              ),
+                              const SizedBox(height: 6),
+                            ],
+                            _inputField(ctrl, itemNameCtrl, 'Product Name (e.g. Gold White Gln)'),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                Expanded(
+                                  flex: 3,
+                                  child: _inputField(ctrl, itemQtyCtrl, 'Qty', isNumber: true),
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  flex: 4,
+                                  child: _inputField(ctrl, itemRateCtrl, 'Rate (Rs.)',
+                                      isNumber: true),
+                                ),
+                                const SizedBox(width: 6),
+                                ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF059669),
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10)),
+                                  ),
+                                  onPressed: () {
+                                    final nm = itemNameCtrl.text.trim();
+                                    final q = int.tryParse(itemQtyCtrl.text) ?? 1;
+                                    final r = double.tryParse(itemRateCtrl.text) ?? 0;
+                                    if (nm.isEmpty || q <= 0 || r <= 0) {
+                                      ctrl.showToast('Enter product name, qty & rate');
+                                      return;
+                                    }
+                                    setModalState(() {
+                                      purchaseItems.add(CartItem(
+                                        prodId: pickedProdId ??
+                                            DateTime.now().millisecondsSinceEpoch,
+                                        code: 'SUP-${purchaseItems.length + 1}',
+                                        nameUr: nm,
+                                        nameRo: nm,
+                                        nameEn: nm,
+                                        price: r,
+                                        cost: r,
+                                        qty: q,
+                                      ));
+                                      pickedProdId = null;
+                                      itemNameCtrl.clear();
+                                      itemQtyCtrl.text = '1';
+                                      itemRateCtrl.clear();
+                                      recalcFromItems();
+                                    });
+                                  },
+                                  icon: const Icon(Icons.add_rounded, size: 16),
+                                  label: const Text('Add',
+                                      style: TextStyle(
+                                          fontSize: 11.5, fontWeight: FontWeight.bold)),
+                                ),
+                              ],
+                            ),
+                            if (purchaseItems.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              ...purchaseItems.asMap().entries.map((entry) {
+                                final idx = entry.key;
+                                final it = entry.value;
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 2),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          '${idx + 1}. ${it.nameEn} (${it.qty} x ${ctrl.formatMoney(it.price)})',
+                                          style: const TextStyle(fontSize: 11),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      Text(
+                                        ctrl.formatMoney(it.subtotal),
+                                        style: const TextStyle(
+                                            fontSize: 11, fontWeight: FontWeight.bold),
+                                      ),
+                                      IconButton(
+                                        visualDensity: VisualDensity.compact,
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(
+                                            minWidth: 26, minHeight: 26),
+                                        icon: const Icon(Icons.close_rounded,
+                                            size: 15, color: Colors.redAccent),
+                                        onPressed: () => setModalState(() {
+                                          purchaseItems.removeAt(idx);
+                                          recalcFromItems();
+                                        }),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }),
+                            ],
+                          ],
                         ),
                       ),
+                      const SizedBox(height: 8),
+                      _inputField(ctrl, supCtrl, 'Supplied Stock Details / Notes'),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _inputField(ctrl, totalCtrl, 'Total Bill', isNumber: true),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _inputField(ctrl, paidCtrl, 'Paid Amount', isNumber: true),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      if (existing != null) ...[
+                        Row(
+                          children: [
+                            Expanded(
+                              flex: 1,
+                              child: OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.redAccent,
+                                  side: const BorderSide(color: Colors.redAccent),
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12)),
+                                ),
+                                onPressed: () {
+                                  confirmDelete(
+                                    context,
+                                    ctrl,
+                                    itemTitle: existing.getCompany(ctrl.currentLang),
+                                    onConfirm: () {
+                                      Navigator.pop(ctx);
+                                      ctrl.deleteSupplier(existing.id);
+                                    },
+                                  );
+                                },
+                                icon: const Icon(Icons.delete_outline, size: 16),
+                                label: Text(
+                                  ctrl.currentLang == 'ur' ? 'حذف' : 'Delete',
+                                  style: _txt(ctrl,
+                                      size: 12,
+                                      weight: FontWeight.bold,
+                                      color: Colors.redAccent),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              flex: 2,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: ctrl.palette.primary,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12)),
+                                ),
+                                onPressed: () {
+                                  final nm = compCtrl.text.trim();
+                                  final tb = double.tryParse(totalCtrl.text) ?? 0;
+                                  if (nm.isEmpty || tb <= 0) return;
+                                  ctrl.saveOrUpdateSupplier(
+                                    existingId: existing.id,
+                                    company: nm,
+                                    lastSupply: supCtrl.text.trim().isEmpty
+                                        ? "Gobi's Paint Stock"
+                                        : supCtrl.text.trim(),
+                                    totalBill: tb,
+                                    paidBill: double.tryParse(paidCtrl.text) ?? 0,
+                                    items: purchaseItems,
+                                  );
+                                  Navigator.pop(ctx);
+                                },
+                                child: Text(
+                                  ctrl.currentLang == 'ur' ? 'اپڈیٹ سپلائر' : 'Update Supplier',
+                                  style: _txt(ctrl,
+                                      size: 13,
+                                      weight: FontWeight.bold,
+                                      color: Colors.white),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ] else ...[
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: ctrl.palette.primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            onPressed: () {
+                              final nm = compCtrl.text.trim();
+                              final tb = double.tryParse(totalCtrl.text) ?? 0;
+                              if (nm.isEmpty || tb <= 0) return;
+                              ctrl.saveOrUpdateSupplier(
+                                existingId: null,
+                                company: nm,
+                                lastSupply: supCtrl.text.trim().isEmpty
+                                    ? "Gobi's Paint Stock"
+                                    : supCtrl.text.trim(),
+                                totalBill: tb,
+                                paidBill: double.tryParse(paidCtrl.text) ?? 0,
+                                items: purchaseItems,
+                              );
+                              Navigator.pop(ctx);
+                            },
+                            child: Text(ctrl.tr('btnNudSave'),
+                                style: _txt(ctrl, size: 13, weight: FontWeight.bold, color: Colors.white)),
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 

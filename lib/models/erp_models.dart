@@ -482,6 +482,7 @@ class SupplierAccount {
   String lastSupplyEn;
   double totalBill;
   double paidBill;
+  List<CartItem> items;
 
   SupplierAccount({
     required this.id,
@@ -493,7 +494,8 @@ class SupplierAccount {
     required this.lastSupplyEn,
     required this.totalBill,
     required this.paidBill,
-  });
+    List<CartItem>? items,
+  }) : items = items ?? [];
 
   double get remaining => (totalBill - paidBill) > 0 ? (totalBill - paidBill) : 0;
 
@@ -519,6 +521,7 @@ class SupplierAccount {
         'lastSupplyEn': lastSupplyEn,
         'totalBill': totalBill,
         'paidBill': paidBill,
+        'items': items.map((e) => e.toMap()).toList(),
       };
 
   factory SupplierAccount.fromMap(Map<String, dynamic> map) => SupplierAccount(
@@ -531,6 +534,9 @@ class SupplierAccount {
         lastSupplyEn: map['lastSupplyEn'] ?? '',
         totalBill: (map['totalBill'] ?? 0).toDouble(),
         paidBill: (map['paidBill'] ?? 0).toDouble(),
+        items: (map['items'] as List<dynamic>? ?? [])
+            .map((e) => CartItem.fromMap(Map<String, dynamic>.from(e as Map)))
+            .toList(),
       );
 }
 
