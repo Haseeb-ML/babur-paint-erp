@@ -24,6 +24,15 @@ class GobisShadeCards {
     'Gold',
     'Hercules',
     'Protector',
+    'Carman NC',
+    'Silverline',
+    'BigBang 2K',
+    'Tusker 2K',
+    'NC Thinner',
+    'Stoving',
+    'Epoxy & Ind',
+    'Timberline',
+    'Ancillaries',
   ];
 
   static const Map<String, List<String>> categoriesBySeries = {
@@ -44,11 +53,67 @@ class GobisShadeCards {
       'Protector Weather Guard',
       'Protector Sealer / Primer',
     ],
+    'Carman NC': [
+      'Carman NC Auto Lacquer',
+      'Carman NC Primer & Putty',
+      'Carman 2K Clear & Hardener',
+    ],
+    'Silverline': [
+      'Silverline NC Lacquer',
+      'Silverline Wood Sealer & Gloss',
+      'Silverline PU 2K Clear',
+    ],
+    'BigBang 2K': [
+      'BigBang 2K Auto Paint',
+      'BigBang 2K Clear & Hardener',
+      'BigBang PU Wood Sealer',
+    ],
+    'Tusker 2K': [
+      'Tusker 2K Auto Paint',
+      'Tusker 2K Clear & Hardener',
+    ],
+    'NC Thinner': [
+      'NC Thinner',
+      '2K / PU Thinner',
+    ],
+    'Stoving': [
+      'Stoving Enamel',
+      'Stoving Primer',
+    ],
+    'Epoxy & Ind': [
+      'Epoxy Floor & Metal Coat',
+      'Epoxy Primer & Hardener',
+    ],
+    'Timberline': [
+      'Timberline Wood Stain & Polish',
+      'Timberline Wood Sealer & Lacquer',
+    ],
+    'Ancillaries': [
+      'Brushes, Rollers & Tools',
+      'Sandpaper & Putty / Fillers',
+    ],
   };
 
   static String catCodeForCategory(String categoryLabel) {
     final lower = categoryLabel.toLowerCase();
     if (lower.contains('weather')) return 'Weather';
+    if (lower.contains('nc') ||
+        lower.contains('2k') ||
+        lower.contains('thinner')) {
+      return 'NC2K';
+    }
+    if (lower.contains('stoving') || lower.contains('epoxy')) {
+      return 'StovingEpoxy';
+    }
+    if (lower.contains('timberline') || lower.contains('wood')) {
+      return 'Wood';
+    }
+    if (lower.contains('brush') ||
+        lower.contains('sandpaper') ||
+        lower.contains('ancillar') ||
+        lower.contains('tools')) {
+      return 'Hardware';
+    }
     if (lower.contains('enamel') ||
         lower.contains('eggshell') ||
         lower.contains('aqueous')) {
@@ -345,6 +410,53 @@ class GobisShadeCards {
     ShadeCardEntry(series: 'Protector', categoryLabel: 'Protector Weather Guard', cat: 'Weather', shadeCode: 'PRW-03', shadeName: 'Sand Stone', colorHex: '#D1BC9B'),
     ShadeCardEntry(series: 'Protector', categoryLabel: 'Protector Sealer / Primer', cat: 'Emulsion', shadeCode: 'PRS-01', shadeName: 'White Sealer', colorHex: '#FAFAFA'),
     ShadeCardEntry(series: 'Protector', categoryLabel: 'Protector Sealer / Primer', cat: 'Emulsion', shadeCode: 'PRS-02', shadeName: 'Acrylic Primer', colorHex: '#F5F5F5'),
+
+    // =========================================================================
+    // 8. CARMAN NC, SILVERLINE, 2K, THINNER, STOVING, EPOXY, TIMBERLINE, TOOLS
+    // =========================================================================
+    ShadeCardEntry(series: 'Carman NC', categoryLabel: 'Carman NC Auto Lacquer', cat: 'NC2K', shadeCode: 'CM-W01', shadeName: 'Super White', colorHex: '#FFFFFF'),
+    ShadeCardEntry(series: 'Carman NC', categoryLabel: 'Carman NC Auto Lacquer', cat: 'NC2K', shadeCode: 'CM-B01', shadeName: 'Jet Black', colorHex: '#111827'),
+    ShadeCardEntry(series: 'Carman NC', categoryLabel: 'Carman NC Auto Lacquer', cat: 'NC2K', shadeCode: 'CM-R01', shadeName: 'Signal Red', colorHex: '#DC2626'),
+    ShadeCardEntry(series: 'Carman NC', categoryLabel: 'Carman NC Auto Lacquer', cat: 'NC2K', shadeCode: 'CM-S01', shadeName: 'Fine Silver Metallic', colorHex: '#CBD5E1'),
+    ShadeCardEntry(series: 'Carman NC', categoryLabel: 'Carman NC Primer & Putty', cat: 'NC2K', shadeCode: 'CMP-01', shadeName: 'NC Grey Primer', colorHex: '#94A3B8'),
+    ShadeCardEntry(series: 'Carman NC', categoryLabel: 'Carman NC Primer & Putty', cat: 'NC2K', shadeCode: 'CMP-02', shadeName: 'NC Red Oxide Primer', colorHex: '#991B1B'),
+    ShadeCardEntry(series: 'Carman NC', categoryLabel: 'Carman 2K Clear & Hardener', cat: 'NC2K', shadeCode: 'CM2K-CL', shadeName: '2K Clear Lacquer', colorHex: '#E0F2FE'),
+    ShadeCardEntry(series: 'Carman NC', categoryLabel: 'Carman 2K Clear & Hardener', cat: 'NC2K', shadeCode: 'CM2K-HD', shadeName: '2K Hardener', colorHex: '#BAE6FD'),
+
+    ShadeCardEntry(series: 'Silverline', categoryLabel: 'Silverline NC Lacquer', cat: 'NC2K', shadeCode: 'SL-501', shadeName: 'NC White 501', colorHex: '#FFFFFF'),
+    ShadeCardEntry(series: 'Silverline', categoryLabel: 'Silverline NC Lacquer', cat: 'NC2K', shadeCode: 'SL-502', shadeName: 'NC Black', colorHex: '#1C1C1C'),
+    ShadeCardEntry(series: 'Silverline', categoryLabel: 'Silverline Wood Sealer & Gloss', cat: 'Wood', shadeCode: 'SL-525', shadeName: 'NC Wood Sealer 525', colorHex: '#D97706'),
+    ShadeCardEntry(series: 'Silverline', categoryLabel: 'Silverline Wood Sealer & Gloss', cat: 'Wood', shadeCode: 'SL-500', shadeName: 'NC Gloss Lacquer 500', colorHex: '#F59E0B'),
+    ShadeCardEntry(series: 'Silverline', categoryLabel: 'Silverline PU 2K Clear', cat: 'NC2K', shadeCode: 'SL-7535', shadeName: 'PU 2K Clear 7535', colorHex: '#38BDF8'),
+
+    ShadeCardEntry(series: 'BigBang 2K', categoryLabel: 'BigBang 2K Auto Paint', cat: 'NC2K', shadeCode: 'BB-W01', shadeName: '2K Super White', colorHex: '#FFFFFF'),
+    ShadeCardEntry(series: 'BigBang 2K', categoryLabel: 'BigBang 2K Auto Paint', cat: 'NC2K', shadeCode: 'BB-B01', shadeName: '2K Jet Black', colorHex: '#111827'),
+    ShadeCardEntry(series: 'BigBang 2K', categoryLabel: 'BigBang 2K Clear & Hardener', cat: 'NC2K', shadeCode: 'BB-CL', shadeName: '2K Clear Coat', colorHex: '#818CF8'),
+    ShadeCardEntry(series: 'BigBang 2K', categoryLabel: 'BigBang 2K Clear & Hardener', cat: 'NC2K', shadeCode: 'BB-HD', shadeName: '2K Hardener', colorHex: '#A5B4FC'),
+    ShadeCardEntry(series: 'BigBang 2K', categoryLabel: 'BigBang PU Wood Sealer', cat: 'Wood', shadeCode: 'BB-301', shadeName: 'PU Wood Sealer 301-95', colorHex: '#FBBF24'),
+
+    ShadeCardEntry(series: 'Tusker 2K', categoryLabel: 'Tusker 2K Auto Paint', cat: 'NC2K', shadeCode: 'TSK-202', shadeName: '2K Jet Black 202', colorHex: '#1E293B'),
+    ShadeCardEntry(series: 'Tusker 2K', categoryLabel: 'Tusker 2K Auto Paint', cat: 'NC2K', shadeCode: 'TSK-101', shadeName: '2K Super White', colorHex: '#FFFFFF'),
+    ShadeCardEntry(series: 'Tusker 2K', categoryLabel: 'Tusker 2K Clear & Hardener', cat: 'NC2K', shadeCode: 'TSK-CL', shadeName: '2K Premium Clear', colorHex: '#C084FC'),
+
+    ShadeCardEntry(series: 'NC Thinner', categoryLabel: 'NC Thinner', cat: 'NC2K', shadeCode: 'NCT-744', shadeName: 'NC Thinner 100-744', colorHex: '#0EA5E9'),
+    ShadeCardEntry(series: 'NC Thinner', categoryLabel: 'NC Thinner', cat: 'NC2K', shadeCode: 'NCT-1144', shadeName: 'NC Thinner 1144', colorHex: '#38BDF8'),
+    ShadeCardEntry(series: 'NC Thinner', categoryLabel: '2K / PU Thinner', cat: 'NC2K', shadeCode: '2KT-01', shadeName: '2K / PU Thinner', colorHex: '#0284C7'),
+
+    ShadeCardEntry(series: 'Stoving', categoryLabel: 'Stoving Enamel', cat: 'StovingEpoxy', shadeCode: 'STV-01', shadeName: 'Stoving White', colorHex: '#FFFFFF'),
+    ShadeCardEntry(series: 'Stoving', categoryLabel: 'Stoving Enamel', cat: 'StovingEpoxy', shadeCode: 'STV-02', shadeName: 'Stoving Black', colorHex: '#1C1C1C'),
+    ShadeCardEntry(series: 'Stoving', categoryLabel: 'Stoving Primer', cat: 'StovingEpoxy', shadeCode: 'STVP-01', shadeName: 'Stoving Grey Primer', colorHex: '#94A3B8'),
+
+    ShadeCardEntry(series: 'Epoxy & Ind', categoryLabel: 'Epoxy Floor & Metal Coat', cat: 'StovingEpoxy', shadeCode: 'EPX-01', shadeName: 'Epoxy Grey', colorHex: '#64748B'),
+    ShadeCardEntry(series: 'Epoxy & Ind', categoryLabel: 'Epoxy Floor & Metal Coat', cat: 'StovingEpoxy', shadeCode: 'EPX-02', shadeName: 'Epoxy Green', colorHex: '#10B981'),
+    ShadeCardEntry(series: 'Epoxy & Ind', categoryLabel: 'Epoxy Primer & Hardener', cat: 'StovingEpoxy', shadeCode: 'EPXP-01', shadeName: 'Epoxy Zinc Primer', colorHex: '#94A3B8'),
+
+    ShadeCardEntry(series: 'Timberline', categoryLabel: 'Timberline Wood Stain & Polish', cat: 'Wood', shadeCode: 'TMB-01', shadeName: 'Walnut Stain', colorHex: '#78350F'),
+    ShadeCardEntry(series: 'Timberline', categoryLabel: 'Timberline Wood Stain & Polish', cat: 'Wood', shadeCode: 'TMB-02', shadeName: 'Teak / Sheesham', colorHex: '#92400E'),
+    ShadeCardEntry(series: 'Timberline', categoryLabel: 'Timberline Wood Sealer & Lacquer', cat: 'Wood', shadeCode: 'TMB-03', shadeName: 'Clear Wood Lacquer', colorHex: '#F59E0B'),
+
+    ShadeCardEntry(series: 'Ancillaries', categoryLabel: 'Brushes, Rollers & Tools', cat: 'Hardware', shadeCode: 'HW-BR', shadeName: 'Paint Brush / Roller', colorHex: '#D97706'),
+    ShadeCardEntry(series: 'Ancillaries', categoryLabel: 'Sandpaper & Putty / Fillers', cat: 'Hardware', shadeCode: 'HW-SP', shadeName: 'Sandpaper / Wall Putty', colorHex: '#E5E7EB'),
   ];
 }
 

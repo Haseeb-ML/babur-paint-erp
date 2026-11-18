@@ -705,11 +705,21 @@ class ErpController extends ChangeNotifier {
   PaintProduct? findProductByBarcode(String query) {
     final clean = query.trim().toLowerCase();
     if (clean.isEmpty) return null;
+    final noLeadingZeros = clean.replaceFirst(RegExp(r'^0+'), '');
+    bool matches(String field) {
+      final f = field.trim().toLowerCase();
+      if (f.isEmpty) return false;
+      if (f == clean) return true;
+      if (noLeadingZeros.isNotEmpty &&
+          f.replaceFirst(RegExp(r'^0+'), '') == noLeadingZeros) {
+        return true;
+      }
+      return false;
+    }
+
     try {
       return inventory.firstWhere((p) =>
-          p.code.toLowerCase() == clean ||
-          p.barcode.toLowerCase() == clean ||
-          p.id.toString() == clean);
+          matches(p.barcode) || matches(p.code) || p.id.toString() == clean);
     } catch (_) {
       return null;
     }

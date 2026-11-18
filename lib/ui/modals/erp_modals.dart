@@ -4289,6 +4289,7 @@ class ErpModals {
     final barcodeCtrl = TextEditingController();
     final costCtrl = TextEditingController(text: '3800');
     final priceCtrl = TextEditingController(text: '4500');
+    final customShadeCtrl = TextEditingController();
     final scannerCtrl = _supportsLiveCamera ? MobileScannerController() : null;
 
     bool stockInMode = isStockIn;
@@ -4298,6 +4299,8 @@ class ErpModals {
     PaintProduct? lastScanned;
     int scanCount = 0;
     String? unknownBarcode;
+    String? posNotFoundBarcode;
+    String? posOutOfStockName;
     String lastDetectedCode = '';
     DateTime lastDetectedAt = DateTime.fromMillisecondsSinceEpoch(0);
 
@@ -4357,16 +4360,33 @@ class ErpModals {
             } else {
               final product = ctrl.findProductByBarcode(code);
               if (product != null) {
-                ctrl.addToPosCart(product);
-                setModalState(() {
-                  lastScanned = product;
-                  unknownBarcode = null;
-                  scanCount++;
-                  barcodeCtrl.clear();
-                });
+                if (product.stock <= 0) {
+                  setModalState(() {
+                    lastScanned = null;
+                    posNotFoundBarcode = null;
+                    posOutOfStockName = product.getName(ctrl.currentLang);
+                    barcodeCtrl.clear();
+                  });
+                  ctrl.showToast(ctrl.currentLang == 'ur'
+                      ? 'یہ آئٹم سٹاک میں ختم ہے!'
+                      : 'Item is out of stock!');
+                } else {
+                  ctrl.addToPosCart(product);
+                  setModalState(() {
+                    lastScanned = product;
+                    unknownBarcode = null;
+                    posNotFoundBarcode = null;
+                    posOutOfStockName = null;
+                    scanCount++;
+                    barcodeCtrl.clear();
+                  });
+                }
               } else {
                 setModalState(() {
                   lastScanned = null;
+                  posOutOfStockName = null;
+                  posNotFoundBarcode = code;
+                  barcodeCtrl.clear();
                 });
                 ctrl.showToast(ctrl.tr('barcodeNotFound'));
               }
@@ -5154,6 +5174,12 @@ class ErpModals {
                                             () => selectedShade = v),
                                       ),
                                       const SizedBox(height: 8),
+                                      _inputField(
+                                        ctrl,
+                                        customShadeCtrl,
+                                        'Custom Shade / Name (optional, overrides dropdown)',
+                                      ),
+                                      const SizedBox(height: 8),
 
                                       // Size chips
                                       Wrap(
@@ -5202,6 +5228,8 @@ class ErpModals {
                                           final catCode = GobisShadeCards
                                               .catCodeForCategory(
                                                   selectedCategory);
+                                          final customName =
+                                              customShadeCtrl.text.trim();
                                           final created =
                                               ctrl.linkBarcodeAndAddStock(
                                             barcode: unknownBarcode!,
@@ -5209,10 +5237,14 @@ class ErpModals {
                                             series: selectedSeries,
                                             cat: catCode,
                                             categoryLabel: selectedCategory,
-                                            shadeCode:
-                                                selectedShade?.shadeCode ?? '',
-                                            shadeName:
-                                                selectedShade?.shadeName ?? '',
+                                            shadeCode: customName.isNotEmpty
+                                                ? ''
+                                                : (selectedShade?.shadeCode ??
+                                                    ''),
+                                            shadeName: customName.isNotEmpty
+                                                ? customName
+                                                : (selectedShade?.shadeName ??
+                                                    ''),
                                             colorHex:
                                                 selectedShade?.colorHex ??
                                                     '#93C5FD',
@@ -5225,6 +5257,7 @@ class ErpModals {
                                                 0,
                                             qty: stockInQty,
                                           );
+                                          customShadeCtrl.clear();
                                           setModalState(() {
                                             lastScanned = created;
                                             unknownBarcode = null;
@@ -5238,6 +5271,80 @@ class ErpModals {
                                             'Save Shade & +$stockInQty Stock'),
                                       ),
                                     ],
+                                  ],
+                                ),
+                              )
+                            else if (!stockInMode && posOutOfStockName != null)
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.redAccent.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                      color: Colors.redAccent
+                                          .withValues(alpha: 0.5)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.error_outline_rounded,
+                                        color: Colors.redAccent, size: 24),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        ctrl.currentLang == 'ur'
+                                            ? '$posOutOfStockName سٹاک میں ختم ہے!'
+                                            : 'Out of Stock: $posOutOfStockName (0 left)',
+                                        style: _txt(ctrl,
+                                            size: 12,
+                                            weight: FontWeight.bold,
+                                            color: Colors.redAccent),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            else if (!stockInMode && posNotFoundBarcode != null)
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF59E0B)
+                                      .withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                      color: const Color(0xFFF59E0B)
+                                          .withValues(alpha: 0.5)),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    Text(
+                                      ctrl.currentLang == 'ur'
+                                          ? 'یہ بارکوڈ سٹاک میں لنک نہیں ہے: $posNotFoundBarcode'
+                                          : 'Barcode not linked in stock: $posNotFoundBarcode',
+                                      style: _txt(ctrl,
+                                          size: 12, weight: FontWeight.bold),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    ElevatedButton.icon(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            const Color(0xFF10B981),
+                                        foregroundColor: Colors.white,
+                                      ),
+                                      onPressed: () {
+                                        setModalState(() {
+                                          stockInMode = true;
+                                          unknownBarcode = posNotFoundBarcode;
+                                          posNotFoundBarcode = null;
+                                        });
+                                      },
+                                      icon: const Icon(Icons.link_rounded,
+                                          size: 17),
+                                      label: Text(ctrl.currentLang == 'ur'
+                                          ? 'اسے Stock-In میں لنک کریں'
+                                          : 'Link This Barcode in Stock-In'),
+                                    ),
                                   ],
                                 ),
                               )

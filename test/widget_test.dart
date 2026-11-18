@@ -481,4 +481,81 @@ void main() {
 
     await tester.pump(const Duration(seconds: 3));
   });
+
+  testWidgets('All Paint Series (NC/2K/Wood) & POS Barcode Scan-to-Cart Test',
+      (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(380, 820);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    final ctrl = ErpController();
+    await ctrl.init();
+    ctrl.setLanguage('en');
+
+    // 1. Verify all Paint Series exist in GobisShadeCards (including Carman NC, Silverline, etc.)
+    expect(GobisShadeCards.seriesList, containsAll([
+      'Gold',
+      'Hercules',
+      'Protector',
+      'Carman NC',
+      'Silverline',
+      'BigBang 2K',
+      'Tusker 2K',
+      'NC Thinner',
+      'Stoving',
+      'Epoxy & Ind',
+      'Timberline',
+      'Ancillaries',
+    ]));
+
+    // 2. Link a Carman NC product in Stock-In and scan it in POS (with leading 0!)
+    final ncProd = ctrl.linkBarcodeAndAddStock(
+      barcode: '896400055511',
+      series: 'Carman NC',
+      cat: 'NC2K',
+      categoryLabel: 'Carman NC Auto Lacquer',
+      shadeCode: 'CM-R01',
+      shadeName: 'Signal Red',
+      colorHex: '#DC2626',
+      sizeLabel: '1 Litre',
+      costPrice: 1200,
+      salePrice: 1500,
+      qty: 6,
+    );
+    expect(ncProd.series, 'Carman NC');
+    expect(ncProd.stock, 6);
+
+    // 3. Open POS Barcode Scanner Modal, scan unknown -> switch to link, AND scan with leading 0 -> adds to Cart
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => ElevatedButton(
+              onPressed: () => ErpModals.openBarcodeScannerModal(context, ctrl),
+              child: const Text('Open POS Scanner'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open POS Scanner'));
+    await tester.pumpAndSettle();
+
+    // Scan unknown barcode in POS mode -> shows inline Link button
+    await tester.enterText(find.byType(TextField).first, '123456789');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+    expect(find.text('Barcode not linked in stock: 123456789'), findsOneWidget);
+    expect(find.text('Link This Barcode in Stock-In'), findsOneWidget);
+
+    // Scan Carman NC barcode WITH leading 0 -> adds directly to POS Cart!
+    await tester.enterText(find.byType(TextField).first, '0896400055511');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+
+    expect(ctrl.posCart.any((c) => c.prodId == ncProd.id && c.qty == 1), true);
+
+    await tester.pump(const Duration(seconds: 3));
+  });
 }
