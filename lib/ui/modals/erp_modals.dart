@@ -4295,14 +4295,13 @@ class ErpModals {
     bool stockInMode = isStockIn;
     bool useCamera = _supportsLiveCamera;
     bool torchOn = false;
+    bool scanPaused = false;
     int stockInQty = 1;
     PaintProduct? lastScanned;
     int scanCount = 0;
     String? unknownBarcode;
     String? posNotFoundBarcode;
     String? posOutOfStockName;
-    String lastDetectedCode = '';
-    DateTime lastDetectedAt = DateTime.fromMillisecondsSinceEpoch(0);
 
     // Unknown barcode linking state
     bool linkExistingMode = false;
@@ -4585,26 +4584,55 @@ class ErpModals {
                                       MobileScanner(
                                         controller: scannerCtrl,
                                         onDetect: (capture) {
+                                          if (scanPaused) return;
                                           for (final b in capture.barcodes) {
                                             final raw =
                                                 b.rawValue?.trim() ?? '';
                                             if (raw.isEmpty) continue;
-                                            final now = DateTime.now();
-                                            if (raw == lastDetectedCode &&
-                                                now
-                                                        .difference(
-                                                            lastDetectedAt)
-                                                        .inMilliseconds <
-                                                    1400) {
-                                              continue;
-                                            }
-                                            lastDetectedCode = raw;
-                                            lastDetectedAt = now;
+                                            scanPaused = true;
                                             handleScan(raw);
                                             break;
                                           }
                                         },
                                       ),
+                                      if (scanPaused)
+                                        Positioned.fill(
+                                          child: Container(
+                                            color: Colors.black
+                                                .withValues(alpha: 0.72),
+                                            alignment: Alignment.center,
+                                            child: ElevatedButton.icon(
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor:
+                                                    const Color(0xFF10B981),
+                                                foregroundColor: Colors.white,
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 16,
+                                                        vertical: 10),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                ),
+                                              ),
+                                              onPressed: () => setModalState(
+                                                  () => scanPaused = false),
+                                              icon: const Icon(
+                                                  Icons
+                                                      .qr_code_scanner_rounded,
+                                                  size: 20),
+                                              label: Text(
+                                                ctrl.currentLang == 'ur'
+                                                    ? 'اگلا آئٹم اسکین کریں'
+                                                    : 'Scanned! Tap to Scan Next',
+                                                style: const TextStyle(
+                                                    fontSize: 12.5,
+                                                    fontWeight:
+                                                        FontWeight.bold),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
                                       Positioned(
                                         top: 8,
                                         right: 8,
