@@ -1171,22 +1171,33 @@ class ErpViews {
                           ),
                         ),
                         const SizedBox(height: 5),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: ctrl.palette.primary,
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
-                          onPressed: () => ctrl.addToPosCart(item),
-                          child: Text(
-                            ctrl.tr('addBillBtn'),
-                            style:
-                                _txt(ctrl, size: 11, weight: FontWeight.bold, color: Colors.white),
-                          ),
+                        Builder(
+                          builder: (btnCtx) {
+                            final inCartQty = ctrl.posCart
+                                .where((c) => c.prodId == item.id)
+                                .fold<int>(0, (s, c) => s + c.qty);
+                            return ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: inCartQty > 0
+                                    ? const Color(0xFF10B981)
+                                    : ctrl.palette.primary,
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                              onPressed: () => ctrl.addToPosCart(item),
+                              child: Text(
+                                inCartQty > 0
+                                    ? '✓ ($inCartQty)'
+                                    : ctrl.tr('addBillBtn'),
+                                style:
+                                    _txt(ctrl, size: 10.5, weight: FontWeight.bold, color: Colors.white),
+                              ),
+                            );
+                          },
                         ),
                       ],
                     ),
@@ -1221,6 +1232,81 @@ class ErpViews {
             ),
           );
         }),
+        if (ctrl.posCart.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFFBBF24), width: 1.5),
+              boxShadow: const [
+                BoxShadow(
+                  color: Colors.black26,
+                  blurRadius: 8,
+                  offset: Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFBBF24).withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.shopping_bag_rounded,
+                      color: Color(0xFFFBBF24), size: 20),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        ctrl.currentLang == 'ur'
+                            ? 'بل میں کل آئٹمز: ${ctrl.cartItemCount}'
+                            : 'Total Items in Bill: ${ctrl.cartItemCount}',
+                        style: _txt(ctrl,
+                            size: 12,
+                            weight: FontWeight.bold,
+                            color: Colors.white),
+                      ),
+                      Text(
+                        '${ctrl.tr('dashTotalDue')}: ${ctrl.formatMoney(ctrl.cartTotal)}',
+                        style: const TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFFFBBF24),
+                            fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFBBF24),
+                    foregroundColor: const Color(0xFF0F172A),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: () => ErpModals.openPosCartModal(context, ctrl),
+                  icon: const Icon(Icons.arrow_forward_rounded, size: 16),
+                  label: Text(
+                    ctrl.currentLang == 'ur' ? 'بل فائنل کریں' : 'Checkout',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
       ],
     );
   }
